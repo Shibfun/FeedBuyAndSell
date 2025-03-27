@@ -515,7 +515,7 @@
             return priceImpact;
         }
 
-        function optimizeRoutes(possibleRoutes, totalAmountInWei) {
+        function optimizeRoutes(possibleRoutes, totalAmountInWei, payTokenSymbol) {
             const totalAmountIn = web3.utils.toBN(totalAmountInWei);
             if (totalAmountIn.lte(web3.utils.toBN('0'))) return [];
 
@@ -535,7 +535,15 @@
                 amountOutMin: '0'
             }));
 
-            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('1', 'ether'));
+            let STEP_AMOUNT;
+            if (payTokenSymbol === 'WOOF') {
+                STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('200', 'ether'));
+            } else if (payTokenSymbol === 'LUISA') {
+                STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('2000', 'ether'));
+            } else {
+                STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('1', 'ether'));
+            }
+
             const MIN_ALLOCATION = web3.utils.toBN(web3.utils.toWei('0.001', 'ether'));
             let remainingAmount = totalAmountIn;
 
@@ -647,7 +655,7 @@
             }
 
             try {
-                const swapRoutes = optimizeRoutes(possibleRoutes, amountInWei);
+                const swapRoutes = optimizeRoutes(possibleRoutes, amountInWei, payTokenSymbol);
 
                 if (!swapRoutes.length) {
                     buyNote.innerHTML = 'No available routes found.';
@@ -789,7 +797,7 @@
             ];
 
             try {
-                const swapRoutes = optimizeRoutes(possibleRoutes, amountInWei);
+                const swapRoutes = optimizeRoutes(possibleRoutes, amountInWei, 'FEED');
 
                 if (!swapRoutes.length) {
                     sellNote.innerHTML = 'No available routes found.';
