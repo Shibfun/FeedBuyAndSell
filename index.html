@@ -438,9 +438,10 @@
                 return;
             }
             let amount;
+            const payTokenSymbol = payTokenSelect.value;
             if (percentage === 100) {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether'));
-                if (payTokenSelect.value === 'BONE') {
+                if (payTokenSymbol === 'BONE' || payTokenSymbol === 'WOOF' || payTokenSymbol === 'LUISA') {
                     amount = Math.max(0, amount - 0.001);
                 }
             } else {
@@ -458,6 +459,7 @@
             let amount;
             if (percentage === 100) {
                 amount = parseFloat(web3.utils.fromWei(feedBalance, 'ether'));
+                amount = Math.max(0, amount - 0.001);
             } else {
                 amount = parseFloat(web3.utils.fromWei(feedBalance, 'ether')) * (percentage / 100);
             }
@@ -517,8 +519,8 @@
             const totalAmountIn = web3.utils.toBN(totalAmountInWei);
             if (totalAmountIn.lte(web3.utils.toBN('0'))) return [];
 
+            const testAmount = web3.utils.toBN(web3.utils.toWei('1', 'ether'));
             const routeData = possibleRoutes.map(route => {
-                const testAmount = web3.utils.toBN(web3.utils.toWei('1', 'ether'));
                 const output = getOutputForRoute(route, testAmount);
                 const efficiency = output.gt(web3.utils.toBN('0')) ? output.div(testAmount) : web3.utils.toBN('0');
                 return { route, efficiency, output };
@@ -526,90 +528,60 @@
 
             routeData.sort((a, b) => b.efficiency.cmp(a.efficiency));
 
-            const swapRoutes = [];
-            let remainingAmount = totalAmountIn;
-            const MIN_ALLOCATION = web3.utils.toBN(web3.utils.toWei('0.01', 'ether'));
-
-            const initialAllocation = totalAmountIn.div(web3.utils.toBN(possibleRoutes.length));
-            const allocations = routeData.map(data => ({
+            const swapRoutes = routeData.map(data => ({
                 route: data.route,
-                amountIn: initialAllocation,
-                amountOut: web3.utils.toBN('0')
+                amountIn: web3.utils.toBN('0'),
+                amountOut: web3.utils.toBN('0'),
+                amountOutMin: '0'
             }));
 
-            for (let i = 0; i < allocations.length; i++) {
-                if (remainingAmount.lte(web3.utils.toBN('0'))) break;
-                const allocation = allocations[i];
-                let amountToAllocate = remainingAmount.lt(allocation.amountIn) ? remainingAmount : allocation.amountIn;
-                if (amountToAllocate.lt(MIN_ALLOCATION)) continue;
+            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('1', 'ether'));
+            const MIN_ALLOCATION = web3.utils.toBN(web3.utils.toWei('0.001', 'ether'));
+            let remainingAmount = totalAmountIn;
 
-                const output = getOutputForRoute(allocation.route, amountToAllocate);
-                if (output.gt(web3.utils.toBN('0'))) {
-                    swapRoutes.push({
-                        amountIn: amountToAllocate.toString(),
-                        amountOutMin: '0',
-                        path: allocation.route,
-                        amountOut: output
-                    });
-                    remainingAmount = remainingAmount.sub(amountToAllocate);
-                }
-            }
-
-            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('0.1', 'ether'));
             while (remainingAmount.gt(MIN_ALLOCATION)) {
-                let bestRoute = null;
-                let bestOutputPerUnit = web3.utils.toBN('0');
-                let bestAmountIn = web3.utils.toBN('0');
+                let bestRouteIndex = -1;
+                let bestMarginalOutputPerUnit = web3.utils.toBN('0');
 
-                for (const { route } of routeData) {
-                    const testAmount = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
-                    if (testAmount.lt(MIN_ALLOCATION)) continue;
-                    const output = getOutputForRoute(route, testAmount);
-                    const outputPerUnit = output.gt(web3.utils.toBN('0')) ? output.div(testAmount) : web3.utils.toBN('0');
-                    if (outputPerUnit.gt(bestOutputPerUnit)) {
-                        bestOutputPerUnit = outputPerUnit;
-                        bestRoute = route;
-                        bestAmountIn = testAmount;
+                for (let i = 0; i < routeData.length; i++) {
+                    const currentAmount = swapRoutes[i].amountIn;
+                    const additionalAmount = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
+                    if (additionalAmount.lt(MIN_ALLOCATION)) continue;
+
+                    const currentOutput = getOutputForRoute(routeData[i].route, currentAmount);
+                    const newAmount = currentAmount.add(additionalAmount);
+                    const newOutput = getOutputForRoute(routeData[i].route, newAmount);
+                    const marginalOutput = newOutput.sub(currentOutput);
+                    const marginalOutputPerUnit = marginalOutput.gt(web3.utils.toBN('0')) ? marginalOutput.div(additionalAmount) : web3.utils.toBN('0');
+
+                    if (marginalOutputPerUnit.gt(bestMarginalOutputPerUnit)) {
+                        bestMarginalOutputPerUnit = marginalOutputPerUnit;
+                        bestRouteIndex = i;
                     }
                 }
 
-                if (!bestRoute || bestOutputPerUnit.lte(web3.utils.toBN('0'))) break;
+                if (bestRouteIndex === -1 || bestMarginalOutputPerUnit.lte(web3.utils.toBN('0'))) break;
 
-                const existingRoute = swapRoutes.find(r => r.path === bestRoute);
-                if (existingRoute) {
-                    existingRoute.amountIn = web3.utils.toBN(existingRoute.amountIn).add(bestAmountIn).toString();
-                    existingRoute.amountOut = existingRoute.amountOut.add(getOutputForRoute(bestRoute, bestAmountIn));
-                } else {
-                    swapRoutes.push({
-                        amountIn: bestAmountIn.toString(),
-                        amountOutMin: '0',
-                        path: bestRoute,
-                        amountOut: getOutputForRoute(bestRoute, bestAmountIn)
-                    });
-                }
-                remainingAmount = remainingAmount.sub(bestAmountIn);
+                const additionalAmount = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
+                swapRoutes[bestRouteIndex].amountIn = swapRoutes[bestRouteIndex].amountIn.add(additionalAmount);
+                swapRoutes[bestRouteIndex].amountOut = getOutputForRoute(routeData[bestRouteIndex].route, swapRoutes[bestRouteIndex].amountIn);
+                remainingAmount = remainingAmount.sub(additionalAmount);
             }
 
             if (remainingAmount.gt(web3.utils.toBN('0'))) {
-                const bestRoute = routeData[0]?.route;
-                if (bestRoute) {
-                    const output = getOutputForRoute(bestRoute, remainingAmount);
-                    const existingRoute = swapRoutes.find(r => r.path === bestRoute);
-                    if (existingRoute) {
-                        existingRoute.amountIn = web3.utils.toBN(existingRoute.amountIn).add(remainingAmount).toString();
-                        existingRoute.amountOut = existingRoute.amountOut.add(output);
-                    } else {
-                        swapRoutes.push({
-                            amountIn: remainingAmount.toString(),
-                            amountOutMin: '0',
-                            path: bestRoute,
-                            amountOut: output
-                        });
-                    }
-                }
+                const bestRouteIndex = 0;
+                swapRoutes[bestRouteIndex].amountIn = swapRoutes[bestRouteIndex].amountIn.add(remainingAmount);
+                swapRoutes[bestRouteIndex].amountOut = getOutputForRoute(routeData[bestRouteIndex].route, swapRoutes[bestRouteIndex].amountIn);
             }
 
-            return swapRoutes.filter(route => web3.utils.toBN(route.amountIn).gt(web3.utils.toBN('0')));
+            return swapRoutes
+                .filter(route => route.amountIn.gt(web3.utils.toBN('0')))
+                .map(route => ({
+                    amountIn: route.amountIn.toString(),
+                    amountOutMin: '0',
+                    path: route.route,
+                    amountOut: route.amountOut
+                }));
         }
 
         async function checkAllowance(tokenAddress, amount) {
@@ -694,7 +666,7 @@
                     const priceImpact = calculatePriceImpact(route.path, route.amountIn);
                     totalPriceImpact += priceImpact * (amountInEther / parseFloat(amountIn));
                     const path = route.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.from) || p.from).join(' -> ') + ' -> FEED';
-                    const share = amountInEther / parseFloat(amountIn) * 100;
+                    const share = (amountInEther / parseFloat(amountIn)) * 100;
                     html += `${path}: ${outputEther.toFixed(2)} FEED (${share.toFixed(1)}%) -> ${amountInEther.toFixed(2)} ${payTokenSymbol}<br>`;
                 }
 
