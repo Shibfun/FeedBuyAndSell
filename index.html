@@ -176,6 +176,7 @@
             </div>
             <div class="swap-note" id="buyNote"></div>
         </div>
+        <button class="swap-button" id="approveBuyButton" onclick="approveBuyToken()" style="display: none;">Approve Token</button>
         <button class="swap-button" id="buyButton" onclick="buyFEED()">Buy FEED</button>
         <div class="swap-box">
             <div class="balance-row">
@@ -221,14 +222,15 @@
         ];
         const feedBuyAndSellAbi = [
             {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithBONE","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"payable","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithLUISA","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithWOOF","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithLUISA","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"}],"name":"getExpectedAmountsOut","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"sellToBONE","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"}
         ];
         const erc20Abi = [
             {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
-            {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"success","type":"bool"}],"type":"function"}
+            {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"success","type":"bool"}],"type":"function"},
+            {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"remaining","type":"uint256"}],"type":"function"}
         ];
         const shibarium = {
             chainId: 109,
@@ -242,7 +244,8 @@
         let web3, account, router, factory, feedBuyAndSell;
         let payBalance = '0';
         let feedBalance = '0';
-        const defaultSlippage = 0.005;
+        let pairCache = new Map(); // Cache for pair addresses
+        let reserveCache = new Map(); // Cache for reserves
 
         // Event listeners for DOM loading
         document.addEventListener('DOMContentLoaded', () => {
@@ -260,7 +263,7 @@
             try {
                 if (!window.ethereum) throw new Error("No wallet detected. Please install MetaMask or another wallet.");
                 connectButton.disabled = true;
-                status.innerText = "Connecting...";
+                status.innerHTML = "Connecting... <span class='spinner'></span>";
                 web3 = new Web3(window.ethereum);
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 if (!accounts.length) throw new Error("No accounts found. Please unlock your wallet.");
@@ -273,7 +276,7 @@
                 status.innerText = "Connected to Shibarium";
                 await updateBalances();
             } catch (error) {
-                status.innerText = "Failed: " + error.message;
+                status.innerText = `Failed: ${error.message}`;
                 console.error(error);
                 resetUI();
             } finally {
@@ -309,6 +312,12 @@
             const status = document.getElementById('networkStatus');
             connectButton.textContent = "Connect Wallet";
             status.innerText = "Click to connect...";
+            document.getElementById('buyBalance').innerText = "Balance: 0";
+            document.getElementById('sellBalance').innerText = "Balance: 0";
+            document.getElementById('buyNote').innerHTML = "";
+            document.getElementById('sellNote').innerHTML = "";
+            document.getElementById('buyButton').disabled = true;
+            document.getElementById('approveButton').disabled = true;
         }
 
         // Setup wallet event listeners for account and chain changes
@@ -357,17 +366,22 @@
             if (!web3 || !account) return;
             const payTokenSymbol = document.getElementById('payToken').value;
             const payToken = tokens[payTokenSymbol];
-            if (payToken.isNative) {
-                payBalance = await web3.eth.getBalance(account);
-                document.getElementById('buyBalance').innerText = `Balance: ${web3.utils.fromWei(payBalance, 'ether')}`;
-            } else {
-                const tokenContract = new web3.eth.Contract(erc20Abi, payToken.address);
-                payBalance = await tokenContract.methods.balanceOf(account).call();
-                document.getElementById('buyBalance').innerText = `Balance: ${web3.utils.fromWei(payBalance, 'ether')}`;
+            try {
+                if (payToken.isNative) {
+                    payBalance = await web3.eth.getBalance(account);
+                    document.getElementById('buyBalance').innerText = `Balance: ${parseFloat(web3.utils.fromWei(payBalance, 'ether')).toFixed(4)}`;
+                } else {
+                    const tokenContract = new web3.eth.Contract(erc20Abi, payToken.address);
+                    payBalance = await tokenContract.methods.balanceOf(account).call();
+                    document.getElementById('buyBalance').innerText = `Balance: ${parseFloat(web3.utils.fromWei(payBalance, 'ether')).toFixed(4)}`;
+                }
+                const feedContract = new web3.eth.Contract(erc20Abi, tokens.FEED.address);
+                feedBalance = await feedContract.methods.balanceOf(account).call();
+                document.getElementById('sellBalance').innerText = `Balance: ${parseFloat(web3.utils.fromWei(feedBalance, 'ether')).toFixed(4)}`;
+            } catch (error) {
+                console.error("Error updating balances:", error);
+                document.getElementById('networkStatus').innerText = "Error fetching balances.";
             }
-            const feedContract = new web3.eth.Contract(erc20Abi, tokens.FEED.address);
-            feedBalance = await feedContract.methods.balanceOf(account).call();
-            document.getElementById('sellBalance').innerText = `Balance: ${web3.utils.fromWei(feedBalance, 'ether')}`;
         }
 
         // Set percentage of balance for buying (reserves 0.001 BONE for MAX)
@@ -385,7 +399,7 @@
             } else {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether')) * (percentage / 100);
             }
-            document.getElementById('payAmount').value = amount.toString();
+            document.getElementById('payAmount').value = amount.toFixed(4);
             checkBuyRoutes();
         }
 
@@ -401,34 +415,48 @@
             } else {
                 amount = parseFloat(web3.utils.fromWei(feedBalance, 'ether')) * (percentage / 100);
             }
-            document.getElementById('sellAmount').value = amount.toString();
+            document.getElementById('sellAmount').value = amount.toFixed(4);
             checkSellRoutes();
         }
 
-        // Fetch reserves for a pool (returns reserves for tokenA and tokenB)
-        async function getPoolReserves(tokenA, tokenB) {
+        // Fetch pair address with caching
+        async function getPairAddress(tokenA, tokenB) {
+            const key = `${tokenA}-${tokenB}-false`;
+            if (pairCache.has(key)) {
+                return pairCache.get(key);
+            }
             const pairAddress = await factory.methods.getPair(tokenA, tokenB, false).call();
+            pairCache.set(key, pairAddress);
+            return pairAddress;
+        }
+
+        // Fetch reserves for a pool with caching
+        async function getPoolReserves(tokenA, tokenB) {
+            const pairAddress = await getPairAddress(tokenA, tokenB);
             if (pairAddress === '0x0000000000000000000000000000000000000000') {
                 return { reserveA: web3.utils.toBN('0'), reserveB: web3.utils.toBN('0'), exists: false };
+            }
+            const key = pairAddress;
+            if (reserveCache.has(key)) {
+                const cached = reserveCache.get(key);
+                return { reserveA: web3.utils.toBN(cached.reserveA), reserveB: web3.utils.toBN(cached.reserveB), exists: true };
             }
             const pairContract = new web3.eth.Contract(pairAbi, pairAddress);
             const reserves = await pairContract.methods.getReserves().call();
             const token0 = await pairContract.methods.token0().call();
-            const reserveA = token0 === tokenA ? web3.utils.toBN(reserves.reserve0) : web3.utils.toBN(reserves.reserve1);
-            const reserveB = token0 === tokenA ? web3.utils.toBN(reserves.reserve1) : web3.utils.toBN(reserves.reserve0);
-            return { reserveA, reserveB, exists: true };
+            const reserveA = token0 === tokenA ? reserves.reserve0 : reserves.reserve1;
+            const reserveB = token0 === tokenA ? reserves.reserve1 : reserves.reserve0;
+            reserveCache.set(key, { reserveA, reserveB });
+            return { reserveA: web3.utils.toBN(reserveA), reserveB: web3.utils.toBN(reserveB), exists: true };
         }
 
         // Fetch FEED reserves for BONE/FEED, WOOF/FEED, and LUISA/FEED pools
         async function getFeedReserves() {
             const feedReserves = {};
-            // BONE/FEED pool
             const boneFeed = await getPoolReserves(tokens.BONE.address, tokens.FEED.address);
             feedReserves['BONE/FEED'] = boneFeed.exists ? (boneFeed.reserveB.toString() === tokens.FEED.address ? boneFeed.reserveA : boneFeed.reserveB) : web3.utils.toBN('0');
-            // WOOF/FEED pool
             const woofFeed = await getPoolReserves(tokens.WOOF.address, tokens.FEED.address);
             feedReserves['WOOF/FEED'] = woofFeed.exists ? (woofFeed.reserveB.toString() === tokens.FEED.address ? woofFeed.reserveA : woofFeed.reserveB) : web3.utils.toBN('0');
-            // LUISA/FEED pool
             const luisaFeed = await getPoolReserves(tokens.LUISA.address, tokens.FEED.address);
             feedReserves['LUISA/FEED'] = luisaFeed.exists ? (luisaFeed.reserveB.toString() === tokens.FEED.address ? luisaFeed.reserveA : luisaFeed.reserveB) : web3.utils.toBN('0');
             return feedReserves;
@@ -457,74 +485,94 @@
             return currentAmount;
         }
 
+        // Check allowance for a token
+        async function checkAllowance(tokenAddress, amount) {
+            const tokenContract = new web3.eth.Contract(erc20Abi, tokenAddress);
+            const allowance = await tokenContract.methods.allowance(account, feedBuyAndSellAddress).call();
+            return web3.utils.toBN(allowance).gte(web3.utils.toBN(amount));
+        }
+
         // Check buy routes and optimize allocation based on FEED reserves
         async function checkBuyRoutes() {
             const buyNote = document.getElementById('buyNote');
             const buyButton = document.getElementById('buyButton');
+            const approveBuyButton = document.getElementById('approveBuyButton');
             const payTokenSymbol = document.getElementById('payToken').value;
             const payToken = tokens[payTokenSymbol];
             const amountIn = document.getElementById('payAmount').value;
             if (!web3 || !account || !amountIn || amountIn <= 0) {
                 buyNote.innerHTML = '';
                 buyButton.disabled = true;
+                approveBuyButton.style.display = 'none';
                 return;
             }
             let amountInWei;
             try {
-                amountInWei = web3.utils.toWei(amountIn, 'ether');
+                amountInWei = web3.utils.toWei(amountIn.toString(), 'ether');
             } catch (error) {
                 buyNote.innerHTML = 'Invalid amount entered.';
                 buyButton.disabled = true;
+                approveBuyButton.style.display = 'none';
+                return;
+            }
+            if (web3.utils.toBN(amountInWei).gt(web3.utils.toBN(payBalance))) {
+                buyNote.innerHTML = 'Insufficient balance.';
+                buyButton.disabled = true;
+                approveBuyButton.style.display = 'none';
                 return;
             }
             buyNote.innerHTML = `Checking routes... <span class="spinner"></span>`;
+
+            // Check allowance for non-native tokens
+            let needsApproval = false;
+            if (!payToken.isNative) {
+                const hasAllowance = await checkAllowance(payToken.address, amountInWei);
+                needsApproval = !hasAllowance;
+            }
 
             // Define possible routes based on pay token
             let possibleRoutes = [];
             if (payTokenSymbol === 'BONE') {
                 possibleRoutes = [
-                    [{ from: tokens.BONE.address, to: tokens.FEED.address, stable: false }], // BONE -> FEED
-                    [{ from: tokens.BONE.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }], // BONE -> WOOF -> FEED
-                    [{ from: tokens.BONE.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }] // BONE -> LUISA -> FEED
+                    [{ from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.BONE.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.BONE.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }]
                 ];
             } else if (payTokenSymbol === 'WOOF') {
                 possibleRoutes = [
-                    [{ from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }], // WOOF -> BONE -> FEED
-                    [{ from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }] // WOOF -> FEED
+                    [{ from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }]
                 ];
             } else if (payTokenSymbol === 'LUISA') {
                 possibleRoutes = [
-                    [{ from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }], // LUISA -> BONE -> FEED
-                    [{ from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }] // LUISA -> FEED
+                    [{ from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }]
                 ];
             }
 
             try {
-                // Fetch FEED reserves for relevant pools
                 const feedReserves = await getFeedReserves();
                 const routeWeights = [];
-
-                // Calculate weights based on FEED reserves for each route
                 for (const route of possibleRoutes) {
                     let weight = web3.utils.toBN('0');
                     if (payTokenSymbol === 'BONE') {
-                        if (route.length === 1) { // BONE -> FEED
+                        if (route.length === 1) {
                             weight = feedReserves['BONE/FEED'];
-                        } else if (route[1].from === tokens.WOOF.address) { // BONE -> WOOF -> FEED
+                        } else if (route[1].from === tokens.WOOF.address) {
                             weight = feedReserves['WOOF/FEED'];
-                        } else { // BONE -> LUISA -> FEED
+                        } else {
                             weight = feedReserves['LUISA/FEED'];
                         }
                     } else if (payTokenSymbol === 'WOOF') {
-                        if (route.length === 1) { // WOOF -> FEED
+                        if (route.length === 1) {
                             weight = feedReserves['WOOF/FEED'];
-                        } else { // WOOF -> BONE -> FEED
+                        } else {
                             weight = feedReserves['BONE/FEED'];
                         }
                     } else if (payTokenSymbol === 'LUISA') {
-                        if (route.length === 1) { // LUISA -> FEED
+                        if (route.length === 1) {
                             weight = feedReserves['LUISA/FEED'];
-                        } else { // LUISA -> BONE -> FEED
+                        } else {
                             weight = feedReserves['BONE/FEED'];
                         }
                     }
@@ -536,21 +584,20 @@
                 if (!routeWeights.length) {
                     buyNote.innerHTML = 'No available routes found.';
                     buyButton.disabled = true;
+                    approveBuyButton.style.display = 'none';
                     return;
                 }
 
-                // Calculate total weight for proportional allocation
                 let totalWeight = web3.utils.toBN('0');
                 for (const { weight } of routeWeights) {
                     totalWeight = totalWeight.add(weight);
                 }
 
                 const swapRoutes = [];
-                let totalOutputFloat = 0;
+                let totalOutput = web3.utils.toBN('0');
                 let remainingAmount = web3.utils.toBN(amountInWei);
                 let html = 'AVAILABLE ROUTES:<br>';
 
-                // Allocate amounts based on FEED reserve weights
                 for (const { route, weight } of routeWeights) {
                     const share = weight.mul(web3.utils.toBN(10000)).div(totalWeight).toNumber() / 10000;
                     const routeAmountIn = web3.utils.toBN(amountInWei).mul(web3.utils.toBN(Math.floor(share * 10000))).div(web3.utils.toBN(10000));
@@ -559,7 +606,7 @@
                     remainingAmount = remainingAmount.sub(routeAmountIn);
                     const output = await getOutputForRoute(route, routeAmountIn);
                     const outputEther = parseFloat(web3.utils.fromWei(output, 'ether'));
-                    totalOutputFloat += outputEther;
+                    totalOutput = totalOutput.add(output);
                     const path = route.map(p => Object.keys(tokens).find(k => tokens[k].address === p.from) || p.from).join(' -> ') + ' -> FEED';
                     html += `${path}: ${outputEther.toFixed(2)} (${(share * 100).toFixed(1)}%)<br>`;
                     swapRoutes.push({
@@ -571,14 +618,13 @@
                     });
                 }
 
-                // Allocate remaining amount to the route with the highest FEED reserve
                 if (remainingAmount.gt(web3.utils.toBN('0')) && swapRoutes.length > 0) {
                     const bestRoute = routeWeights.reduce((best, current) => current.weight.gt(best.weight) ? current : best);
                     const output = await getOutputForRoute(bestRoute.route, remainingAmount);
                     const outputEther = parseFloat(web3.utils.fromWei(output, 'ether'));
-                    totalOutputFloat += outputEther;
+                    totalOutput = totalOutput.add(output);
                     const path = bestRoute.route.map(p => Object.keys(tokens).find(k => tokens[k].address === p.from) || p.from).join(' -> ') + ' -> FEED';
-                    const share = outputEther / totalOutputFloat * 100;
+                    const share = outputEther / parseFloat(web3.utils.fromWei(totalOutput, 'ether')) * 100;
                     html += `${path}: ${outputEther.toFixed(2)} (${share.toFixed(1)}%)<br>`;
                     swapRoutes.push({
                         amountIn: remainingAmount.toString(),
@@ -592,25 +638,56 @@
                 if (!swapRoutes.length) {
                     buyNote.innerHTML = 'No available routes found.';
                     buyButton.disabled = true;
+                    approveBuyButton.style.display = 'none';
                     return;
                 }
 
-                // Set minimum output amounts based on expected amounts
                 const expectedAmounts = await feedBuyAndSell.methods.getExpectedAmountsOut(swapRoutes).call();
                 for (let i = 0; i < swapRoutes.length; i++) {
                     swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
 
-                html += `TOTAL: ${totalOutputFloat.toFixed(2)} FEED`;
+                const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput, 'ether'));
+                html += `TOTAL: ${totalOutputEther.toFixed(2)} FEED`;
                 buyNote.innerHTML = html;
                 window.buyRoutes = swapRoutes;
                 window.buyTotalAmount = amountInWei;
                 window.buyPayToken = payTokenSymbol;
                 buyButton.disabled = false;
+                approveBuyButton.style.display = needsApproval ? 'block' : 'none';
+                buyButton.style.display = needsApproval ? 'none' : 'block';
             } catch (error) {
                 console.error("Error checking buy routes:", error);
                 buyNote.innerHTML = 'Error checking routes: ' + (error.message || "Unknown error");
                 buyButton.disabled = true;
+                approveBuyButton.style.display = 'none';
+            }
+        }
+
+        // Approve token for buying
+        async function approveBuyToken() {
+            const approveBuyButton = document.getElementById('approveBuyButton');
+            const buyButton = document.getElementById('buyButton');
+            const status = document.getElementById('networkStatus');
+            const payTokenSymbol = window.buyPayToken;
+            const totalAmount = window.buyTotalAmount;
+            if (!web3 || !account || !totalAmount) {
+                status.innerText = "Please connect wallet and enter a valid amount.";
+                return;
+            }
+            try {
+                approveBuyButton.disabled = true;
+                status.innerHTML = `Approving ${payTokenSymbol}... <span class="spinner"></span>`;
+                const tokenContract = new web3.eth.Contract(erc20Abi, tokens[payTokenSymbol].address);
+                await tokenContract.methods.approve(feedBuyAndSellAddress, totalAmount).send({ from: account });
+                status.innerText = "Approval successful!";
+                approveBuyButton.style.display = 'none';
+                buyButton.style.display = 'block';
+            } catch (error) {
+                console.error("Approval failed:", error);
+                status.innerText = error.message || "Approval failed.";
+            } finally {
+                approveBuyButton.disabled = false;
             }
         }
 
@@ -628,7 +705,7 @@
             const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
             try {
                 buyButton.disabled = true;
-                status.innerText = "Processing buy...";
+                status.innerHTML = "Processing buy... <span class='spinner'></span>";
                 if (payTokenSymbol === 'BONE') {
                     await feedBuyAndSell.methods.buyWithBONE(window.buyRoutes, deadline).send({ from: account, value: totalAmount });
                 } else if (payTokenSymbol === 'WOOF') {
@@ -663,7 +740,7 @@
             }
             let amountInWei;
             try {
-                amountInWei = web3.utils.toWei(amountIn, 'ether');
+                amountInWei = web3.utils.toWei(amountIn.toString(), 'ether');
             } catch (error) {
                 sellNote.innerHTML = 'Invalid amount entered.';
                 approveButton.style.display = 'block';
@@ -671,28 +748,35 @@
                 approveButton.disabled = true;
                 return;
             }
+            if (web3.utils.toBN(amountInWei).gt(web3.utils.toBN(feedBalance))) {
+                sellNote.innerHTML = 'Insufficient balance.';
+                approveButton.style.display = 'block';
+                sellButton.style.display = 'none';
+                approveButton.disabled = true;
+                return;
+            }
             sellNote.innerHTML = `Checking routes... <span class="spinner"></span>`;
 
-            // Define possible routes for selling FEED
+            // Check allowance for FEED
+            const hasAllowance = await checkAllowance(tokens.FEED.address, amountInWei);
+            const needsApproval = !hasAllowance;
+
             const possibleRoutes = [
-                [{ from: tokens.FEED.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }], // FEED -> LUISA -> BONE
-                [{ from: tokens.FEED.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }], // FEED -> WOOF -> BONE
-                [{ from: tokens.FEED.address, to: tokens.BONE.address, stable: false }] // FEED -> BONE
+                [{ from: tokens.FEED.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }],
+                [{ from: tokens.FEED.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }],
+                [{ from: tokens.FEED.address, to: tokens.BONE.address, stable: false }]
             ];
 
             try {
-                // Fetch FEED reserves for relevant pools
                 const feedReserves = await getFeedReserves();
                 const routeWeights = [];
-
-                // Calculate weights based on FEED reserves for each route
                 for (const route of possibleRoutes) {
                     let weight = web3.utils.toBN('0');
-                    if (route.length === 1) { // FEED -> BONE
+                    if (route.length === 1) {
                         weight = feedReserves['BONE/FEED'];
-                    } else if (route[0].to === tokens.WOOF.address) { // FEED -> WOOF -> BONE
+                    } else if (route[0].to === tokens.WOOF.address) {
                         weight = feedReserves['WOOF/FEED'];
-                    } else { // FEED -> LUISA -> BONE
+                    } else {
                         weight = feedReserves['LUISA/FEED'];
                     }
                     if (weight.gt(web3.utils.toBN('0'))) {
@@ -708,18 +792,16 @@
                     return;
                 }
 
-                // Calculate total weight for proportional allocation
                 let totalWeight = web3.utils.toBN('0');
                 for (const { weight } of routeWeights) {
                     totalWeight = totalWeight.add(weight);
                 }
 
                 const swapRoutes = [];
-                let totalOutputFloat = 0;
+                let totalOutput = web3.utils.toBN('0');
                 let remainingAmount = web3.utils.toBN(amountInWei);
                 let html = 'AVAILABLE ROUTES:<br>';
 
-                // Allocate amounts based on FEED reserve weights
                 for (const { route, weight } of routeWeights) {
                     const share = weight.mul(web3.utils.toBN(10000)).div(totalWeight).toNumber() / 10000;
                     const routeAmountIn = web3.utils.toBN(amountInWei).mul(web3.utils.toBN(Math.floor(share * 10000))).div(web3.utils.toBN(10000));
@@ -728,7 +810,7 @@
                     remainingAmount = remainingAmount.sub(routeAmountIn);
                     const output = await getOutputForRoute(route, routeAmountIn);
                     const outputEther = parseFloat(web3.utils.fromWei(output, 'ether'));
-                    totalOutputFloat += outputEther;
+                    totalOutput = totalOutput.add(output);
                     const path = ['FEED'].concat(route.map(p => Object.keys(tokens).find(k => tokens[k].address === p.to) || p.to)).join(' -> ');
                     html += `${path}: ${outputEther.toFixed(2)} (${(share * 100).toFixed(1)}%)<br>`;
                     swapRoutes.push({
@@ -740,14 +822,13 @@
                     });
                 }
 
-                // Allocate remaining amount to the route with the highest FEED reserve
                 if (remainingAmount.gt(web3.utils.toBN('0')) && swapRoutes.length > 0) {
                     const bestRoute = routeWeights.reduce((best, current) => current.weight.gt(best.weight) ? current : best);
                     const output = await getOutputForRoute(bestRoute.route, remainingAmount);
                     const outputEther = parseFloat(web3.utils.fromWei(output, 'ether'));
-                    totalOutputFloat += outputEther;
+                    totalOutput = totalOutput.add(output);
                     const path = ['FEED'].concat(bestRoute.route.map(p => Object.keys(tokens).find(k => tokens[k].address === p.to) || p.to)).join(' -> ');
-                    const share = outputEther / totalOutputFloat * 100;
+                    const share = outputEther / parseFloat(web3.utils.fromWei(totalOutput, 'ether')) * 100;
                     html += `${path}: ${outputEther.toFixed(2)} (${share.toFixed(1)}%)<br>`;
                     swapRoutes.push({
                         amountIn: remainingAmount.toString(),
@@ -766,18 +847,18 @@
                     return;
                 }
 
-                // Set minimum output amounts based on expected amounts
                 const expectedAmounts = await feedBuyAndSell.methods.getExpectedAmountsOut(swapRoutes).call();
                 for (let i = 0; i < swapRoutes.length; i++) {
                     swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
 
-                html += `TOTAL: ${totalOutputFloat.toFixed(2)} BONE`;
+                const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput, 'ether'));
+                html += `TOTAL: ${totalOutputEther.toFixed(2)} BONE`;
                 sellNote.innerHTML = html;
                 window.sellRoutes = swapRoutes;
                 window.sellTotalAmount = amountInWei;
-                approveButton.style.display = 'block';
-                sellButton.style.display = 'none';
+                approveButton.style.display = needsApproval ? 'block' : 'none';
+                sellButton.style.display = needsApproval ? 'none' : 'block';
                 approveButton.disabled = false;
             } catch (error) {
                 console.error("Error checking sell routes:", error);
@@ -799,7 +880,7 @@
             }
             try {
                 approveButton.disabled = true;
-                status.innerText = "Approving FEED...";
+                status.innerHTML = "Approving FEED... <span class='spinner'></span>";
                 const feedContract = new web3.eth.Contract(erc20Abi, tokens.FEED.address);
                 await feedContract.methods.approve(feedBuyAndSellAddress, window.sellTotalAmount).send({ from: account });
                 status.innerText = "Approval successful!";
@@ -827,7 +908,7 @@
             const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
             try {
                 sellButton.disabled = true;
-                status.innerText = "Processing sell...";
+                status.innerHTML = "Processing sell... <span class='spinner'></span>";
                 await feedBuyAndSell.methods.sellToBONE(totalAmount, window.sellRoutes, deadline).send({ from: account });
                 status.innerText = "Sell successful!";
                 document.getElementById('sellAmount').value = '';
