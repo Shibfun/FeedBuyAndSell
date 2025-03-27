@@ -210,9 +210,9 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
     <script>
-        // Configuration
         const tokens = {
-            BONE: { address: "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd", symbol: "BONE", isNative: true },
+            BONE: { address: "", symbol: "BONE", isNative: true },
+            WBONE: { address: "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd", symbol: "WBONE" },
             WOOF: { address: "0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834", symbol: "WOOF" },
             LUISA: { address: "0x0cCD687CC6F8461170336D8e8cf46A39313DEab9", symbol: "LUISA" },
             FEED: { address: "0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0", symbol: "FEED" }
@@ -227,175 +227,31 @@
         };
 
         const routerAddress = "0x96b16aBD53Bfd765F4CD118590C1d0be8B57DE24";
-        const feedSwapAddress = "0xfdf45d31867d3541e70608f0bd6a8f00fcbd1c55";
+        const feedSwapAddress = "0xc1EB1d6AA8d5bC41507Bbc6F29ECC6B12D9Aa2F6";
 
-        // ABIs
         const routerAbi = [
-            {
-                "inputs": [
-                    { "internalType": "uint256", "name": "amountIn", "type": "uint256" },
-                    { "components": [
-                        { "internalType": "address", "name": "from", "type": "address" },
-                        { "internalType": "address", "name": "to", "type": "address" },
-                        { "internalType": "bool", "name": "stable", "type": "bool" }
-                    ], "internalType": "struct Router.route[]", "name": "routes", "type": "tuple[]" }
-                ],
-                "name": "getAmountsOut",
-                "outputs": [
-                    { "internalType": "uint256[]", "name": "amounts", "type": "uint256[]" }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            }
+            {"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"view","type":"function"}
         ];
 
         const pairAbi = [
-            {
-                "inputs": [],
-                "name": "getReserves",
-                "outputs": [
-                    { "internalType": "uint256", "name": "reserve0", "type": "uint256" },
-                    { "internalType": "uint256", "name": "reserve1", "type": "uint256" },
-                    { "internalType": "uint32", "name": "blockTimestampLast", "type": "uint32" }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [],
-                "name": "token0",
-                "outputs": [
-                    { "internalType": "address", "name": "", "type": "address" }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [],
-                "name": "token1",
-                "outputs": [
-                    { "internalType": "address", "name": "", "type": "address" }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            }
+            {"inputs":[],"name":"getReserves","outputs":[{"internalType":"uint256","name":"reserve0","type":"uint256"},{"internalType":"uint256","name":"reserve1","type":"uint256"},{"internalType":"uint32","name":"blockTimestampLast","type":"uint32"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"token0","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"token1","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
         ];
 
         const feedSwapAbi = [
-            {
-                "inputs": [
-                    { "internalType": "uint256", "name": "deadline", "type": "uint256" }
-                ],
-                "name": "buyWithWBONE",
-                "outputs": [
-                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
-                ],
-                "stateMutability": "payable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    { "internalType": "uint256", "name": "totalAmountIn", "type": "uint256" },
-                    { "internalType": "uint256", "name": "deadline", "type": "uint256" }
-                ],
-                "name": "buyWithWOOF",
-                "outputs": [
-                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
-                ],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    { "internalType": "uint256", "name": "totalAmountIn", "type": "uint256" },
-                    { "internalType": "uint256", "name": "deadline", "type": "uint256" }
-                ],
-                "name": "buyWithLUISA",
-                "outputs": [
-                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
-                ],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    { "internalType": "uint256", "name": "totalAmountIn", "type": "uint256" },
-                    { "internalType": "uint256", "name": "deadline", "type": "uint256" }
-                ],
-                "name": "sellToWBONE",
-                "outputs": [
-                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
-                ],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    {
-                        "components": [
-                            { "internalType": "uint256", "name": "amountIn", "type": "uint256" },
-                            { "internalType": "uint256", "name": "amountOutMin", "type": "uint256" },
-                            {
-                                "components": [
-                                    { "internalType": "address", "name": "from", "type": "address" },
-                                    { "internalType": "address", "name": "to", "type": "address" },
-                                    { "internalType": "bool", "name": "stable", "type": "bool" }
-                                ],
-                                "internalType": "struct IRouter.route[]",
-                                "name": "path",
-                                "type": "tuple[]"
-                            }
-                        ],
-                        "internalType": "struct FeedSwap.SwapRoute[]",
-                        "name": "routes",
-                        "type": "tuple[]"
-                    }
-                ],
-                "name": "getExpectedAmountsOut",
-                "outputs": [
-                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            }
+            {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedSwap.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithBONE","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"payable","type":"function"},
+            {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedSwap.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithWOOF","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedSwap.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithLUISA","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedSwap.SwapRoute[]","name":"routes","type":"tuple[]"}],"name":"getExpectedAmountsOut","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedSwap.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"sellToBONE","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"getAllPoolReserves","outputs":[{"components":[{"internalType":"address","name":"pool","type":"address"},{"internalType":"address","name":"token0","type":"address"},{"internalType":"address","name":"token1","type":"address"},{"internalType":"uint256","name":"reserve0","type":"uint256"},{"internalType":"uint256","name":"reserve1","type":"uint256"}],"internalType":"struct FeedSwap.PoolReserves[]","name":"reserves","type":"tuple[]"}],"stateMutability":"view","type":"function"}
         ];
 
         const erc20Abi = [
-            {
-                "constant": true,
-                "inputs": [
-                    { "name": "_owner", "type": "address" }
-                ],
-                "name": "balanceOf",
-                "outputs": [
-                    { "name": "balance", "type": "uint256" }
-                ],
-                "type": "function"
-            },
-            {
-                "constant": false,
-                "inputs": [
-                    { "name": "_spender", "type": "address" },
-                    { "name": "_value", "type": "uint256" }
-                ],
-                "name": "approve",
-                "outputs": [
-                    { "name": "success", "type": "bool" }
-                ],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [
-                    { "name": "_owner", "type": "address" },
-                    { "name": "_spender", "type": "address" }
-                ],
-                "name": "allowance",
-                "outputs": [
-                    { "name": "remaining", "type": "uint256" }
-                ],
-                "type": "function"
-            }
+            {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
+            {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"success","type":"bool"}],"type":"function"},
+            {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"remaining","type":"uint256"}],"type":"function"}
         ];
 
         const shibarium = {
@@ -406,13 +262,11 @@
             blockExplorerUrls: ['https://shibariumscan.io']
         };
 
-        // Global variables
         let web3, account, router, feedSwap;
         let payBalance = '0';
         let feedBalance = '0';
-        let reserveCache = new Map(); // Cache for reserves
+        let reserveCache = new Map();
 
-        // DOM elements
         const connectWalletButton = document.getElementById('connectWalletButton');
         const networkStatus = document.getElementById('networkStatus');
         const buyBalance = document.getElementById('buyBalance');
@@ -427,7 +281,6 @@
         const approveButton = document.getElementById('approveButton');
         const sellButton = document.getElementById('sellButton');
 
-        // Event listeners
         document.addEventListener('DOMContentLoaded', () => {
             connectWalletButton.addEventListener('click', connectWallet);
             payTokenSelect.addEventListener('change', updateBalances);
@@ -436,7 +289,6 @@
             setupWalletListeners();
         });
 
-        // Debounce function to prevent excessive calls
         function debounce(func, wait) {
             let timeout;
             return function (...args) {
@@ -445,10 +297,9 @@
             };
         }
 
-        // Connect to wallet and initialize contracts
         async function connectWallet() {
             try {
-                if (!window.ethereum) throw new Error("No wallet detected. Please install MetaMask or another wallet.");
+                if (!window.ethereum) throw new Error("No wallet detected. Please install MetaMask.");
                 connectWalletButton.disabled = true;
                 setStatus("Connecting... <span class='spinner'></span>");
                 web3 = new Web3(window.ethereum);
@@ -463,14 +314,12 @@
                 await updateBalances();
             } catch (error) {
                 setStatus(`Failed: ${error.message}`, false);
-                console.error(error);
                 resetUI();
             } finally {
                 connectWalletButton.disabled = false;
             }
         }
 
-        // Switch to Shibarium network
         async function switchToShibarium() {
             const chainId = await web3.eth.getChainId();
             if (Number(chainId) !== 109) {
@@ -492,7 +341,6 @@
             }
         }
 
-        // Reset UI when disconnected
         function resetUI() {
             connectWalletButton.textContent = "Connect Wallet";
             setStatus("Click to connect...");
@@ -510,7 +358,6 @@
             sellAmountInput.value = '';
         }
 
-        // Setup wallet event listeners
         function setupWalletListeners() {
             if (!window.ethereum) return;
             window.ethereum.on('accountsChanged', async (newAccounts) => {
@@ -548,7 +395,6 @@
             });
         }
 
-        // Update balances
         async function updateBalances() {
             if (!web3 || !account) return;
             const payTokenSymbol = payTokenSelect.value;
@@ -566,12 +412,10 @@
                 feedBalance = await feedContract.methods.balanceOf(account).call();
                 sellBalance.textContent = `Balance: ${parseFloat(web3.utils.fromWei(feedBalance, 'ether')).toFixed(4)}`;
             } catch (error) {
-                console.error("Error updating balances:", error);
                 setStatus("Error fetching balances.", false);
             }
         }
 
-        // Set percentage for buying
         function setPercentage(percentage) {
             if (!payBalance || !web3) {
                 setStatus("Please connect wallet first.", false);
@@ -581,7 +425,7 @@
             if (percentage === 100) {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether'));
                 if (payTokenSelect.value === 'BONE') {
-                    amount = Math.max(0, amount - 0.001); // Reserve 0.001 BONE for gas
+                    amount = Math.max(0, amount - 0.001);
                 }
             } else {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether')) * (percentage / 100);
@@ -590,7 +434,6 @@
             checkBuyRoutes();
         }
 
-        // Set percentage for selling
         function setSellPercentage(percentage) {
             if (!feedBalance || !web3) {
                 setStatus("Please connect wallet first.", false);
@@ -606,14 +449,13 @@
             checkSellRoutes();
         }
 
-        // Fetch reserves for a pool with caching
         async function getPoolReserves(tokenA, tokenB) {
             let pairAddress;
-            if (tokenA === tokens.BONE.address && tokenB === tokens.FEED.address || tokenA === tokens.FEED.address && tokenB === tokens.BONE.address) {
+            if (tokenA === tokens.WBONE.address && tokenB === tokens.FEED.address || tokenA === tokens.FEED.address && tokenB === tokens.WBONE.address) {
                 pairAddress = poolAddresses.WBONE_FEED;
-            } else if (tokenA === tokens.BONE.address && tokenB === tokens.WOOF.address || tokenA === tokens.WOOF.address && tokenB === tokens.BONE.address) {
+            } else if (tokenA === tokens.WBONE.address && tokenB === tokens.WOOF.address || tokenA === tokens.WOOF.address && tokenB === tokens.WBONE.address) {
                 pairAddress = poolAddresses.WBONE_WOOF;
-            } else if (tokenA === tokens.BONE.address && tokenB === tokens.LUISA.address || tokenA === tokens.LUISA.address && tokenB === tokens.BONE.address) {
+            } else if (tokenA === tokens.WBONE.address && tokenB === tokens.LUISA.address || tokenA === tokens.LUISA.address && tokenB === tokens.WBONE.address) {
                 pairAddress = poolAddresses.WBONE_LUISA;
             } else if (tokenA === tokens.WOOF.address && tokenB === tokens.FEED.address || tokenA === tokens.FEED.address && tokenB === tokens.WOOF.address) {
                 pairAddress = poolAddresses.WOOF_FEED;
@@ -635,11 +477,9 @@
             const reserveA = token0 === tokenA ? reserves.reserve0 : reserves.reserve1;
             const reserveB = token0 === tokenA ? reserves.reserve1 : reserves.reserve0;
             reserveCache.set(key, { reserveA, reserveB });
-            console.log(`Reserves for ${tokenA}-${tokenB}: ${reserveA} / ${reserveB}`);
             return { reserveA: web3.utils.toBN(reserveA), reserveB: web3.utils.toBN(reserveB), exists: true };
         }
 
-        // Calculate output for a given route
         async function getOutputForRoute(route, amountIn) {
             let currentAmount = web3.utils.toBN(amountIn);
             for (let i = 0; i < route.length; i++) {
@@ -662,16 +502,14 @@
             return currentAmount;
         }
 
-        // Check allowance for a token
         async function checkAllowance(tokenAddress, amount) {
             const tokenContract = new web3.eth.Contract(erc20Abi, tokenAddress);
             const allowance = await tokenContract.methods.allowance(account, feedSwapAddress).call();
             return web3.utils.toBN(allowance).gte(web3.utils.toBN(amount));
         }
 
-        // Optimize routes using aggregation trading
         async function optimizeRoutes(possibleRoutes, totalAmountInWei, outputToken) {
-            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('0.01', 'ether')); // Small step for allocation
+            const STEP_AMOUNT = web3.utils.toWei('0.01', 'ether');
             let remainingAmount = web3.utils.toBN(totalAmountInWei);
             const routeAllocations = possibleRoutes.map(route => ({
                 route,
@@ -716,7 +554,6 @@
             return swapRoutes;
         }
 
-        // Check buy routes
         async function checkBuyRoutes() {
             buyNote.innerHTML = '';
             buyButton.disabled = true;
@@ -757,18 +594,18 @@
             let possibleRoutes = [];
             if (payTokenSymbol === 'BONE') {
                 possibleRoutes = [
-                    [{ from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
-                    [{ from: tokens.BONE.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }],
-                    [{ from: tokens.BONE.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }]
+                    [{ from: tokens.WBONE.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.WBONE.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.WBONE.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }]
                 ];
             } else if (payTokenSymbol === 'WOOF') {
                 possibleRoutes = [
-                    [{ from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.WOOF.address, to: tokens.WBONE.address, stable: false }, { from: tokens.WBONE.address, to: tokens.FEED.address, stable: false }],
                     [{ from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }]
                 ];
             } else if (payTokenSymbol === 'LUISA') {
                 possibleRoutes = [
-                    [{ from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.LUISA.address, to: tokens.WBONE.address, stable: false }, { from: tokens.WBONE.address, to: tokens.FEED.address, stable: false }],
                     [{ from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }]
                 ];
             }
@@ -807,12 +644,10 @@
                 approveBuyButton.style.display = needsApproval ? 'block' : 'none';
                 buyButton.style.display = needsApproval ? 'none' : 'block';
             } catch (error) {
-                console.error("Error checking buy routes:", error);
                 buyNote.innerHTML = 'Error checking routes: ' + (error.message || "Unknown error");
             }
         }
 
-        // Approve token for buying
         async function approveBuyToken() {
             const payTokenSymbol = window.buyPayToken;
             const totalAmount = window.buyTotalAmount;
@@ -830,14 +665,12 @@
                 buyButton.style.display = 'block';
                 buyButton.disabled = false;
             } catch (error) {
-                console.error("Approval failed:", error);
                 setStatus(error.message || "Approval failed.", false);
             } finally {
                 approveBuyButton.disabled = false;
             }
         }
 
-        // Execute buy transaction
         async function buyFEED() {
             if (!web3 || !account || !window.buyRoutes) {
                 setStatus("Please connect wallet and enter a valid amount.", false);
@@ -850,25 +683,23 @@
                 buyButton.disabled = true;
                 setStatus("Processing buy... <span class='spinner'></span>");
                 if (payTokenSymbol === 'BONE') {
-                    await feedSwap.methods.buyWithWBONE(deadline).send({ from: account, value: totalAmount });
+                    await feedSwap.methods.buyWithBONE(window.buyRoutes, deadline).send({ from: account, value: totalAmount });
                 } else if (payTokenSymbol === 'WOOF') {
-                    await feedSwap.methods.buyWithWOOF(totalAmount, deadline).send({ from: account });
+                    await feedSwap.methods.buyWithWOOF(window.buyRoutes, totalAmount, deadline).send({ from: account });
                 } else if (payTokenSymbol === 'LUISA') {
-                    await feedSwap.methods.buyWithLUISA(totalAmount, deadline).send({ from: account });
+                    await feedSwap.methods.buyWithLUISA(window.buyRoutes, totalAmount, deadline).send({ from: account });
                 }
                 setStatus("Buy successful!", true);
                 payAmountInput.value = '';
                 buyNote.innerHTML = '';
                 await updateBalances();
             } catch (error) {
-                console.error("Buy failed:", error);
                 setStatus(error.message || "Buy failed.", false);
             } finally {
                 buyButton.disabled = false;
             }
         }
 
-        // Check sell routes
         async function checkSellRoutes() {
             sellNote.innerHTML = '';
             approveButton.style.display = 'block';
@@ -902,13 +733,13 @@
             const needsApproval = !hasAllowance;
 
             const possibleRoutes = [
-                [{ from: tokens.FEED.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }],
-                [{ from: tokens.FEED.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }],
-                [{ from: tokens.FEED.address, to: tokens.BONE.address, stable: false }]
+                [{ from: tokens.FEED.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.WBONE.address, stable: false }],
+                [{ from: tokens.FEED.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.WBONE.address, stable: false }],
+                [{ from: tokens.FEED.address, to: tokens.WBONE.address, stable: false }]
             ];
 
             try {
-                const swapRoutes = await optimizeRoutes(possibleRoutes, amountInWei, tokens.BONE.address);
+                const swapRoutes = await optimizeRoutes(possibleRoutes, amountInWei, tokens.WBONE.address);
 
                 if (!swapRoutes.length) {
                     sellNote.innerHTML = 'No available routes found.';
@@ -941,12 +772,10 @@
                 approveButton.disabled = false;
                 if (!needsApproval) sellButton.disabled = false;
             } catch (error) {
-                console.error("Error checking sell routes:", error);
                 sellNote.innerHTML = 'Error checking routes: ' + (error.message || "Unknown error");
             }
         }
 
-        // Approve FEED for selling
         async function approveFEED() {
             if (!web3 || !account || !window.sellTotalAmount) {
                 setStatus("Please connect wallet and enter a valid amount.", false);
@@ -962,14 +791,12 @@
                 sellButton.style.display = 'block';
                 sellButton.disabled = false;
             } catch (error) {
-                console.error("Approval failed:", error);
                 setStatus(error.message || "Approval failed.", false);
             } finally {
                 approveButton.disabled = false;
             }
         }
 
-        // Execute sell transaction
         async function sellFEED() {
             if (!web3 || !account || !window.sellRoutes) {
                 setStatus("Please connect wallet and enter a valid amount.", false);
@@ -980,7 +807,7 @@
             try {
                 sellButton.disabled = true;
                 setStatus("Processing sell... <span class='spinner'></span>");
-                await feedSwap.methods.sellToWBONE(totalAmount, deadline).send({ from: account });
+                await feedSwap.methods.sellToBONE(window.sellRoutes, totalAmount, deadline).send({ from: account });
                 setStatus("Sell successful!", true);
                 sellAmountInput.value = '';
                 sellNote.innerHTML = '';
@@ -988,14 +815,12 @@
                 sellButton.style.display = 'none';
                 await updateBalances();
             } catch (error) {
-                console.error("Sell failed:", error);
                 setStatus(error.message || "Sell failed.", false);
             } finally {
                 sellButton.disabled = false;
             }
         }
 
-        // Utility function to set status message
         function setStatus(message, success = null) {
             networkStatus.innerHTML = message;
             networkStatus.className = 'status';
