@@ -211,11 +211,11 @@
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
     <script>
         const tokens = {
-            BONE: { address: "", symbol: "BONE", isNative: true },
-            WBONE: { address: "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd", symbol: "WBONE" },
-            WOOF: { address: "0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834", symbol: "WOOF" },
-            LUISA: { address: "0x0cCD687CC6F8461170336D8e8cf46A39313DEab9", symbol: "LUISA" },
-            FEED: { address: "0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0", symbol: "FEED" }
+            BONE: { address: "", symbol: "BONE", isNative: true, decimals: 18 },
+            WBONE: { address: "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd", symbol: "WBONE", decimals: 18 },
+            WOOF: { address: "0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834", symbol: "WOOF", decimals: 18 },
+            LUISA: { address: "0x0cCD687CC6F8461170336D8e8cf46A39313DEab9", symbol: "LUISA", decimals: 18 },
+            FEED: { address: "0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0", symbol: "FEED", decimals: 18 }
         };
 
         const poolAddresses = {
@@ -231,12 +231,6 @@
 
         const routerAbi = [
             {"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"view","type":"function"}
-        ];
-
-        const pairAbi = [
-            {"inputs":[],"name":"getReserves","outputs":[{"internalType":"uint256","name":"reserve0","type":"uint256"},{"internalType":"uint256","name":"reserve1","type":"uint256"},{"internalType":"uint32","name":"blockTimestampLast","type":"uint32"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"token0","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"token1","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
         ];
 
         const feedSwapAbi = [
@@ -265,7 +259,8 @@
         let web3, account, router, feedSwap;
         let payBalance = '0';
         let feedBalance = '0';
-        let reserveCache = new Map();
+        let reserves = {};
+        const SLIPPAGE_TOLERANCE = 0.005; // 0.5%
 
         const connectWalletButton = document.getElementById('connectWalletButton');
         const networkStatus = document.getElementById('networkStatus');
@@ -284,8 +279,14 @@
         document.addEventListener('DOMContentLoaded', () => {
             connectWalletButton.addEventListener('click', connectWallet);
             payTokenSelect.addEventListener('change', updateBalances);
-            payAmountInput.addEventListener('input', debounce(checkBuyRoutes, 500));
-            sellAmountInput.addEventListener('input', debounce(checkSellRoutes, 500));
+            payAmountInput.addEventListener('input', debounce(async () => {
+                await fetchReserves();
+                checkBuyRoutes();
+            }, 500));
+            sellAmountInput.addEventListener('input', debounce(async () => {
+                await fetchReserves();
+                checkSellRoutes();
+            }, 500));
             setupWalletListeners();
         });
 
@@ -311,6 +312,7 @@
                 feedSwap = new web3.eth.Contract(feedSwapAbi, feedSwapAddress);
                 connectWalletButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
                 setStatus("Connected to Shibarium", true);
+                await fetchReserves();
                 await updateBalances();
             } catch (error) {
                 setStatus(`Failed: ${error.message}`, false);
@@ -369,6 +371,7 @@
                         feedSwap = new web3.eth.Contract(feedSwapAbi, feedSwapAddress);
                         connectWalletButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
                         setStatus("Connected to Shibarium", true);
+                        await fetchReserves();
                         await updateBalances();
                     } else {
                         await connectWallet();
@@ -393,6 +396,32 @@
                     await connectWallet();
                 }
             });
+        }
+
+        async function fetchReserves() {
+            if (!web3 || !feedSwap) return;
+            try {
+                const poolReserves = await feedSwap.methods.getAllPoolReserves().call();
+                reserves = {};
+                poolReserves.forEach(pool => {
+                    const key = `${pool.token0}-${pool.token1}`;
+                    const reverseKey = `${pool.token1}-${pool.token0}`;
+                    reserves[key] = {
+                        reserve0: web3.utils.toBN(pool.reserve0),
+                        reserve1: web3.utils.toBN(pool.reserve1),
+                        token0: pool.token0,
+                        token1: pool.token1
+                    };
+                    reserves[reverseKey] = {
+                        reserve0: web3.utils.toBN(pool.reserve1),
+                        reserve1: web3.utils.toBN(pool.reserve0),
+                        token0: pool.token1,
+                        token1: pool.token0
+                    };
+                });
+            } catch (error) {
+                setStatus("Error fetching pool reserves.", false);
+            }
         }
 
         async function updateBalances() {
@@ -431,7 +460,7 @@
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether')) * (percentage / 100);
             }
             payAmountInput.value = amount.toFixed(4);
-            checkBuyRoutes();
+            fetchReserves().then(checkBuyRoutes);
         }
 
         function setSellPercentage(percentage) {
@@ -446,109 +475,135 @@
                 amount = parseFloat(web3.utils.fromWei(feedBalance, 'ether')) * (percentage / 100);
             }
             sellAmountInput.value = amount.toFixed(4);
-            checkSellRoutes();
+            fetchReserves().then(checkSellRoutes);
         }
 
-        async function getPoolReserves(tokenA, tokenB) {
-            let pairAddress;
-            if (tokenA === tokens.WBONE.address && tokenB === tokens.FEED.address || tokenA === tokens.FEED.address && tokenB === tokens.WBONE.address) {
-                pairAddress = poolAddresses.WBONE_FEED;
-            } else if (tokenA === tokens.WBONE.address && tokenB === tokens.WOOF.address || tokenA === tokens.WOOF.address && tokenB === tokens.WBONE.address) {
-                pairAddress = poolAddresses.WBONE_WOOF;
-            } else if (tokenA === tokens.WBONE.address && tokenB === tokens.LUISA.address || tokenA === tokens.LUISA.address && tokenB === tokens.WBONE.address) {
-                pairAddress = poolAddresses.WBONE_LUISA;
-            } else if (tokenA === tokens.WOOF.address && tokenB === tokens.FEED.address || tokenA === tokens.FEED.address && tokenB === tokens.WOOF.address) {
-                pairAddress = poolAddresses.WOOF_FEED;
-            } else if (tokenA === tokens.LUISA.address && tokenB === tokens.FEED.address || tokenA === tokens.FEED.address && tokenB === tokens.LUISA.address) {
-                pairAddress = poolAddresses.LUISA_FEED;
-            } else {
-                return { reserveA: web3.utils.toBN('0'), reserveB: web3.utils.toBN('0'), exists: false };
+        function getReserves(tokenA, tokenB) {
+            const key = `${tokenA}-${tokenB}`;
+            if (reserves[key]) {
+                return {
+                    reserveA: reserves[key].reserve0,
+                    reserveB: reserves[key].reserve1,
+                    exists: true
+                };
             }
-
-            const key = pairAddress;
-            if (reserveCache.has(key)) {
-                const cached = reserveCache.get(key);
-                return { reserveA: web3.utils.toBN(cached.reserveA), reserveB: web3.utils.toBN(cached.reserveB), exists: true };
-            }
-
-            const pairContract = new web3.eth.Contract(pairAbi, pairAddress);
-            const reserves = await pairContract.methods.getReserves().call();
-            const token0 = await pairContract.methods.token0().call();
-            const reserveA = token0 === tokenA ? reserves.reserve0 : reserves.reserve1;
-            const reserveB = token0 === tokenA ? reserves.reserve1 : reserves.reserve0;
-            reserveCache.set(key, { reserveA, reserveB });
-            return { reserveA: web3.utils.toBN(reserveA), reserveB: web3.utils.toBN(reserveB), exists: true };
+            return { reserveA: web3.utils.toBN('0'), reserveB: web3.utils.toBN('0'), exists: false };
         }
 
-        async function getOutputForRoute(route, amountIn) {
+        function getAmountOut(amountIn, reserveIn, reserveOut) {
+            if (amountIn.lte(web3.utils.toBN('0')) || reserveIn.lte(web3.utils.toBN('0')) || reserveOut.lte(web3.utils.toBN('0'))) {
+                return web3.utils.toBN('0');
+            }
+            const amountInWithFee = amountIn.mul(web3.utils.toBN(997));
+            const numerator = amountInWithFee.mul(reserveOut);
+            const denominator = reserveIn.mul(web3.utils.toBN(1000)).add(amountInWithFee);
+            return numerator.div(denominator);
+        }
+
+        function getOutputForRoute(route, amountIn) {
             let currentAmount = web3.utils.toBN(amountIn);
             for (let i = 0; i < route.length; i++) {
-                const { reserveA, reserveB, exists } = await getPoolReserves(route[i].from, route[i].to);
+                const { reserveA, reserveB, exists } = getReserves(route[i].from, route[i].to);
                 if (!exists) return web3.utils.toBN('0');
-                const reserveIn = route[i].from === route[0].from ? reserveA : reserveB;
-                const reserveOut = route[i].from === route[0].from ? reserveB : reserveA;
-                if (currentAmount.gt(reserveIn)) {
-                    currentAmount = reserveIn;
-                }
-                if (currentAmount.lte(web3.utils.toBN('0'))) {
-                    return web3.utils.toBN('0');
-                }
-                const amounts = await router.methods.getAmountsOut(currentAmount.toString(), route.slice(0, i + 1)).call();
-                currentAmount = web3.utils.toBN(amounts[amounts.length - 1]);
-                if (currentAmount.gt(reserveOut)) {
-                    currentAmount = reserveOut;
-                }
+                currentAmount = getAmountOut(currentAmount, reserveA, reserveB);
             }
             return currentAmount;
+        }
+
+        function calculatePriceImpact(route, amountIn) {
+            let currentAmount = web3.utils.toBN(amountIn);
+            let totalReserveIn = web3.utils.toBN('0');
+            let totalReserveOut = web3.utils.toBN('0');
+            for (let i = 0; i < route.length; i++) {
+                const { reserveA, reserveB, exists } = getReserves(route[i].from, route[i].to);
+                if (!exists) return 0;
+                const reserveIn = reserveA;
+                const reserveOut = reserveB;
+                totalReserveIn = totalReserveIn.add(reserveIn);
+                totalReserveOut = totalReserveOut.add(reserveOut);
+                currentAmount = getAmountOut(currentAmount, reserveIn, reserveOut);
+            }
+            if (totalReserveOut.eq(web3.utils.toBN('0'))) return 0;
+            const priceImpact = currentAmount.mul(web3.utils.toBN('10000')).div(totalReserveOut).toNumber() / 100;
+            return priceImpact;
+        }
+
+        function optimizeRoutes(possibleRoutes, totalAmountInWei) {
+            const totalAmountIn = web3.utils.toBN(totalAmountInWei);
+            if (totalAmountIn.lte(web3.utils.toBN('0'))) return [];
+
+            const routeData = possibleRoutes.map(route => {
+                const smallAmount = web3.utils.toBN(web3.utils.toWei('0.01', 'ether'));
+                const output = getOutputForRoute(route, smallAmount);
+                const price = output.gt(web3.utils.toBN('0')) ? smallAmount.mul(web3.utils.toBN(1e18)).div(output) : web3.utils.toBN(1e36);
+                return { route, price, output };
+            });
+
+            routeData.sort((a, b) => a.price.cmp(b.price));
+
+            const swapRoutes = [];
+            let remainingAmount = totalAmountIn;
+            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('0.1', 'ether'));
+
+            while (remainingAmount.gt(web3.utils.toBN('0'))) {
+                let bestRoute = null;
+                let bestOutput = web3.utils.toBN('0');
+                let bestAmountIn = web3.utils.toBN('0');
+
+                for (const { route } of routeData) {
+                    const amountToTest = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
+                    const output = getOutputForRoute(route, amountToTest);
+                    if (output.gt(bestOutput)) {
+                        bestOutput = output;
+                        bestRoute = route;
+                        bestAmountIn = amountToTest;
+                    }
+                }
+
+                if (!bestRoute || bestOutput.lte(web3.utils.toBN('0'))) break;
+
+                const existingRoute = swapRoutes.find(r => r.path === bestRoute);
+                if (existingRoute) {
+                    existingRoute.amountIn = web3.utils.toBN(existingRoute.amountIn).add(bestAmountIn).toString();
+                    existingRoute.amountOut = existingRoute.amountOut.add(bestOutput);
+                } else {
+                    swapRoutes.push({
+                        amountIn: bestAmountIn.toString(),
+                        amountOutMin: '0',
+                        path: bestRoute,
+                        amountOut: bestOutput
+                    });
+                }
+
+                remainingAmount = remainingAmount.sub(bestAmountIn);
+            }
+
+            if (remainingAmount.gt(web3.utils.toBN('0'))) {
+                const bestRoute = routeData[0]?.route;
+                if (bestRoute) {
+                    const output = getOutputForRoute(bestRoute, remainingAmount);
+                    const existingRoute = swapRoutes.find(r => r.path === bestRoute);
+                    if (existingRoute) {
+                        existingRoute.amountIn = web3.utils.toBN(existingRoute.amountIn).add(remainingAmount).toString();
+                        existingRoute.amountOut = existingRoute.amountOut.add(output);
+                    } else {
+                        swapRoutes.push({
+                            amountIn: remainingAmount.toString(),
+                            amountOutMin: '0',
+                            path: bestRoute,
+                            amountOut: output
+                        });
+                    }
+                }
+            }
+
+            return swapRoutes;
         }
 
         async function checkAllowance(tokenAddress, amount) {
             const tokenContract = new web3.eth.Contract(erc20Abi, tokenAddress);
             const allowance = await tokenContract.methods.allowance(account, feedSwapAddress).call();
             return web3.utils.toBN(allowance).gte(web3.utils.toBN(amount));
-        }
-
-        async function optimizeRoutes(possibleRoutes, totalAmountInWei, outputToken) {
-            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('0.01', 'ether'));
-            let remainingAmount = web3.utils.toBN(totalAmountInWei);
-            const routeAllocations = possibleRoutes.map(route => ({
-                route,
-                amountIn: web3.utils.toBN('0'),
-                amountOut: web3.utils.toBN('0')
-            }));
-
-            while (remainingAmount.gt(web3.utils.toBN('0'))) {
-                let bestRouteIndex = -1;
-                let bestOutput = web3.utils.toBN('0');
-
-                for (let i = 0; i < possibleRoutes.length; i++) {
-                    const route = possibleRoutes[i];
-                    const stepAmount = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
-                    const output = await getOutputForRoute(route, stepAmount);
-                    if (output.gt(bestOutput) && output.gt(web3.utils.toBN('0'))) {
-                        bestOutput = output;
-                        bestRouteIndex = i;
-                    }
-                }
-
-                if (bestRouteIndex === -1) break;
-
-                const stepAmount = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
-                routeAllocations[bestRouteIndex].amountIn = routeAllocations[bestRouteIndex].amountIn.add(stepAmount);
-                routeAllocations[bestRouteIndex].amountOut = routeAllocations[bestRouteIndex].amountOut.add(bestOutput);
-                remainingAmount = remainingAmount.sub(stepAmount);
-            }
-
-            const swapRoutes = routeAllocations
-                .filter(alloc => alloc.amountIn.gt(web3.utils.toBN('0')))
-                .map(alloc => ({
-                    amountIn: alloc.amountIn.toString(),
-                    amountOutMin: '0',
-                    path: alloc.route,
-                    amountOut: alloc.amountOut
-                }));
-
-            return swapRoutes;
         }
 
         async function checkBuyRoutes() {
@@ -608,7 +663,7 @@
             }
 
             try {
-                const swapRoutes = await optimizeRoutes(possibleRoutes, amountInWei, tokens.FEED.address);
+                const swapRoutes = optimizeRoutes(possibleRoutes, amountInWei);
 
                 if (!swapRoutes.length) {
                     buyNote.innerHTML = 'No available routes found.';
@@ -616,11 +671,16 @@
                 }
 
                 let totalOutput = web3.utils.toBN('0');
+                let totalInput = web3.utils.toBN('0');
+                let totalPriceImpact = 0;
                 let html = 'AVAILABLE ROUTES:<br>';
                 for (const route of swapRoutes) {
                     const amountInEther = parseFloat(web3.utils.fromWei(route.amountIn, 'ether'));
                     const outputEther = parseFloat(web3.utils.fromWei(route.amountOut.toString(), 'ether'));
-                    totalOutput = totalOutput.add(web3.utils.toBN(route.amountOut));
+                    totalOutput = totalOutput.add(route.amountOut);
+                    totalInput = totalInput.add(web3.utils.toBN(route.amountIn));
+                    const priceImpact = calculatePriceImpact(route.path, route.amountIn);
+                    totalPriceImpact += priceImpact * (amountInEther / parseFloat(amountIn));
                     const path = route.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.from) || p.from).join(' -> ') + ' -> FEED';
                     const share = amountInEther / parseFloat(amountIn) * 100;
                     html += `${path}: ${outputEther.toFixed(2)} FEED (${share.toFixed(1)}%) -> ${amountInEther.toFixed(2)} ${payTokenSymbol}<br>`;
@@ -628,11 +688,19 @@
 
                 const expectedAmounts = await feedSwap.methods.getExpectedAmountsOut(swapRoutes).call();
                 for (let i = 0; i < swapRoutes.length; i++) {
-                    swapRoutes[i].amountOutMin = expectedAmounts[i];
+                    const expectedAmount = web3.utils.toBN(expectedAmounts[i]);
+                    const minAmount = expectedAmount.mul(web3.utils.toBN((1 - SLIPPAGE_TOLERANCE) * 1000)).div(web3.utils.toBN(1000));
+                    swapRoutes[i].amountOutMin = minAmount.toString();
                 }
 
                 const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput.toString(), 'ether'));
-                html += `TOTAL: ${totalOutputEther.toFixed(2)} FEED`;
+                const totalInputEther = parseFloat(web3.utils.fromWei(totalInput.toString(), 'ether'));
+                const pricePerFeed = totalInputEther / totalOutputEther;
+                const minReceived = totalOutputEther * (1 - SLIPPAGE_TOLERANCE);
+                html += `TOTAL: ${totalOutputEther.toFixed(2)} FEED<br>`;
+                html += `Price: ${pricePerFeed.toFixed(4)} ${payTokenSymbol} per FEED<br>`;
+                html += `Minimum received: ${minReceived.toFixed(2)} FEED<br>`;
+                html += `Price impact: ${totalPriceImpact.toFixed(3)}%`;
                 buyNote.innerHTML = html;
                 window.buyRoutes = swapRoutes;
                 window.buyTotalAmount = amountInWei.toString();
@@ -689,6 +757,7 @@
                 setStatus("Buy successful!", true);
                 payAmountInput.value = '';
                 buyNote.innerHTML = '';
+                await fetchReserves();
                 await updateBalances();
             } catch (error) {
                 setStatus(error.message || "Buy failed.", false);
@@ -736,7 +805,7 @@
             ];
 
             try {
-                const swapRoutes = await optimizeRoutes(possibleRoutes, amountInWei, tokens.WBONE.address);
+                const swapRoutes = optimizeRoutes(possibleRoutes, amountInWei);
 
                 if (!swapRoutes.length) {
                     sellNote.innerHTML = 'No available routes found.';
@@ -744,11 +813,16 @@
                 }
 
                 let totalOutput = web3.utils.toBN('0');
+                let totalInput = web3.utils.toBN('0');
+                let totalPriceImpact = 0;
                 let html = 'AVAILABLE ROUTES:<br>';
                 for (const route of swapRoutes) {
                     const amountInEther = parseFloat(web3.utils.fromWei(route.amountIn, 'ether'));
                     const outputEther = parseFloat(web3.utils.fromWei(route.amountOut.toString(), 'ether'));
-                    totalOutput = totalOutput.add(web3.utils.toBN(route.amountOut));
+                    totalOutput = totalOutput.add(route.amountOut);
+                    totalInput = totalInput.add(web3.utils.toBN(route.amountIn));
+                    const priceImpact = calculatePriceImpact(route.path, route.amountIn);
+                    totalPriceImpact += priceImpact * (amountInEther / parseFloat(amountIn));
                     const path = ['FEED'].concat(route.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.to) || p.to)).join(' -> ');
                     const share = amountInEther / parseFloat(amountIn) * 100;
                     html += `${path}: ${outputEther.toFixed(2)} BONE (${share.toFixed(1)}%) -> ${amountInEther.toFixed(2)} FEED<br>`;
@@ -756,11 +830,19 @@
 
                 const expectedAmounts = await feedSwap.methods.getExpectedAmountsOut(swapRoutes).call();
                 for (let i = 0; i < swapRoutes.length; i++) {
-                    swapRoutes[i].amountOutMin = expectedAmounts[i];
+                    const expectedAmount = web3.utils.toBN(expectedAmounts[i]);
+                    const minAmount = expectedAmount.mul(web3.utils.toBN((1 - SLIPPAGE_TOLERANCE) * 1000)).div(web3.utils.toBN(1000));
+                    swapRoutes[i].amountOutMin = minAmount.toString();
                 }
 
                 const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput.toString(), 'ether'));
-                html += `TOTAL: ${totalOutputEther.toFixed(2)} BONE`;
+                const totalInputEther = parseFloat(web3.utils.fromWei(totalInput.toString(), 'ether'));
+                const pricePerFeed = totalOutputEther / totalInputEther;
+                const minReceived = totalOutputEther * (1 - SLIPPAGE_TOLERANCE);
+                html += `TOTAL: ${totalOutputEther.toFixed(2)} BONE<br>`;
+                html += `Price: ${pricePerFeed.toFixed(4)} BONE per FEED<br>`;
+                html += `Minimum received: ${minReceived.toFixed(2)} BONE<br>`;
+                html += `Price impact: ${totalPriceImpact.toFixed(3)}%`;
                 sellNote.innerHTML = html;
                 window.sellRoutes = swapRoutes;
                 window.sellTotalAmount = amountInWei.toString();
@@ -810,6 +892,7 @@
                 sellNote.innerHTML = '';
                 approveButton.style.display = 'block';
                 sellButton.style.display = 'none';
+                await fetchReserves();
                 await updateBalances();
             } catch (error) {
                 setStatus(error.message || "Sell failed.", false);
