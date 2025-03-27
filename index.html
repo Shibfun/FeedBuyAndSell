@@ -229,10 +229,6 @@
         const routerAddress = "0x96b16aBD53Bfd765F4CD118590C1d0be8B57DE24";
         const feedSwapAddress = "0xc1EB1d6AA8d5bC41507Bbc6F29ECC6B12D9Aa2F6";
 
-        const routerAbi = [
-            {"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"view","type":"function"}
-        ];
-
         const feedSwapAbi = [
             {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedSwap.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithBONE","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"payable","type":"function"},
             {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedSwap.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithWOOF","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
@@ -256,11 +252,11 @@
             blockExplorerUrls: ['https://shibariumscan.io']
         };
 
-        let web3, account, router, feedSwap;
+        let web3, account, feedSwap;
         let payBalance = '0';
         let feedBalance = '0';
         let reserves = {};
-        const SLIPPAGE_TOLERANCE = 0.005; // 0.5%
+        const SLIPPAGE_TOLERANCE = 0.005;
 
         const connectWalletButton = document.getElementById('connectWalletButton');
         const networkStatus = document.getElementById('networkStatus');
@@ -308,7 +304,6 @@
                 if (!accounts.length) throw new Error("No accounts found. Please unlock your wallet.");
                 account = accounts[0];
                 await switchToShibarium();
-                router = new web3.eth.Contract(routerAbi, routerAddress);
                 feedSwap = new web3.eth.Contract(feedSwapAbi, feedSwapAddress);
                 connectWalletButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
                 setStatus("Connected to Shibarium", true);
@@ -365,9 +360,8 @@
             window.ethereum.on('accountsChanged', async (newAccounts) => {
                 if (newAccounts.length) {
                     account = newAccounts[0];
-                    if (web3) {
+                    Wif (web3) {
                         await switchToShibarium();
-                        router = new web3.eth.Contract(routerAbi, routerAddress);
                         feedSwap = new web3.eth.Contract(feedSwapAbi, feedSwapAddress);
                         connectWalletButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
                         setStatus("Connected to Shibarium", true);
@@ -379,7 +373,6 @@
                 } else {
                     web3 = null;
                     account = null;
-                    router = null;
                     feedSwap = null;
                     resetUI();
                 }
@@ -388,7 +381,6 @@
                 if (parseInt(chainId, 16) !== 109) {
                     web3 = null;
                     account = null;
-                    router = null;
                     feedSwap = null;
                     resetUI();
                     setStatus("Wrong network. Reconnect to Shibarium.", false);
@@ -399,24 +391,19 @@
         }
 
         async function fetchReserves() {
-            if (!web3 || !feedSwap) return;
             try {
                 const poolReserves = await feedSwap.methods.getAllPoolReserves().call();
                 reserves = {};
-                poolReserves.forEach(pool => {
-                    const key = `${pool.token0}-${pool.token1}`;
-                    const reverseKey = `${pool.token1}-${pool.token0}`;
+                poolReserves.forEach(reserve => {
+                    const key = `${reserve.token0}-${reserve.token1}`;
+                    const reverseKey = `${reserve.token1}-${reserve.token0}`;
                     reserves[key] = {
-                        reserve0: web3.utils.toBN(pool.reserve0),
-                        reserve1: web3.utils.toBN(pool.reserve1),
-                        token0: pool.token0,
-                        token1: pool.token1
+                        reserve0: web3.utils.toBN(reserve.reserve0),
+                        reserve1: web3.utils.toBN(reserve.reserve1)
                     };
                     reserves[reverseKey] = {
-                        reserve0: web3.utils.toBN(pool.reserve1),
-                        reserve1: web3.utils.toBN(pool.reserve0),
-                        token0: pool.token1,
-                        token1: pool.token0
+                        reserve0: web3.utils.toBN(reserve.reserve1),
+                        reserve1: web3.utils.toBN(reserve.reserve0)
                     };
                 });
             } catch (error) {
@@ -481,13 +468,9 @@
         function getReserves(tokenA, tokenB) {
             const key = `${tokenA}-${tokenB}`;
             if (reserves[key]) {
-                return {
-                    reserveA: reserves[key].reserve0,
-                    reserveB: reserves[key].reserve1,
-                    exists: true
-                };
+                return reserves[key];
             }
-            return { reserveA: web3.utils.toBN('0'), reserveB: web3.utils.toBN('0'), exists: false };
+            return { reserve0: web3.utils.toBN('0'), reserve1: web3.utils.toBN('0') };
         }
 
         function getAmountOut(amountIn, reserveIn, reserveOut) {
@@ -503,9 +486,11 @@
         function getOutputForRoute(route, amountIn) {
             let currentAmount = web3.utils.toBN(amountIn);
             for (let i = 0; i < route.length; i++) {
-                const { reserveA, reserveB, exists } = getReserves(route[i].from, route[i].to);
-                if (!exists) return web3.utils.toBN('0');
-                currentAmount = getAmountOut(currentAmount, reserveA, reserveB);
+                const { reserve0, reserve1 } = getReserves(route[i].from, route[i].to);
+                if (reserve0.lte(web3.utils.toBN('0')) || reserve1.lte(web3.utils.toBN('0'))) {
+                    return web3.utils.toBN('0');
+                }
+                currentAmount = getAmountOut(currentAmount, reserve0, reserve1);
             }
             return currentAmount;
         }
@@ -515,13 +500,13 @@
             let totalReserveIn = web3.utils.toBN('0');
             let totalReserveOut = web3.utils.toBN('0');
             for (let i = 0; i < route.length; i++) {
-                const { reserveA, reserveB, exists } = getReserves(route[i].from, route[i].to);
-                if (!exists) return 0;
-                const reserveIn = reserveA;
-                const reserveOut = reserveB;
-                totalReserveIn = totalReserveIn.add(reserveIn);
-                totalReserveOut = totalReserveOut.add(reserveOut);
-                currentAmount = getAmountOut(currentAmount, reserveIn, reserveOut);
+                const { reserve0, reserve1 } = getReserves(route[i].from, route[i].to);
+                if (reserve0.lte(web3.utils.toBN('0')) || reserve1.lte(web3.utils.toBN('0'))) {
+                    return 0;
+                }
+                totalReserveIn = totalReserveIn.add(reserve0);
+                totalReserveOut = totalReserveOut.add(reserve1);
+                currentAmount = getAmountOut(currentAmount, reserve0, reserve1);
             }
             if (totalReserveOut.eq(web3.utils.toBN('0'))) return 0;
             const priceImpact = currentAmount.mul(web3.utils.toBN('10000')).div(totalReserveOut).toNumber() / 100;
@@ -533,48 +518,72 @@
             if (totalAmountIn.lte(web3.utils.toBN('0'))) return [];
 
             const routeData = possibleRoutes.map(route => {
-                const smallAmount = web3.utils.toBN(web3.utils.toWei('0.01', 'ether'));
-                const output = getOutputForRoute(route, smallAmount);
-                const price = output.gt(web3.utils.toBN('0')) ? smallAmount.mul(web3.utils.toBN(1e18)).div(output) : web3.utils.toBN(1e36);
-                return { route, price, output };
+                const testAmount = web3.utils.toBN(web3.utils.toWei('1', 'ether'));
+                const output = getOutputForRoute(route, testAmount);
+                const efficiency = output.gt(web3.utils.toBN('0')) ? output.div(testAmount) : web3.utils.toBN('0');
+                return { route, efficiency, output };
             });
 
-            routeData.sort((a, b) => a.price.cmp(b.price));
+            routeData.sort((a, b) => b.efficiency.cmp(a.efficiency));
 
             const swapRoutes = [];
             let remainingAmount = totalAmountIn;
-            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('0.1', 'ether'));
+            const MIN_ALLOCATION = web3.utils.toBN(web3.utils.toWei('0.01', 'ether'));
 
-            while (remainingAmount.gt(web3.utils.toBN('0'))) {
+            const initialAllocation = totalAmountIn.div(web3.utils.toBN(possibleRoutes.length));
+            const allocations = routeData.map(data => ({
+                route: data.route,
+                amountIn: initialAllocation,
+                amountOut: web3.utils.toBN('0')
+            }));
+
+            for (let i = 0; i < allocations.length; i++) {
+                if (remainingAmount.lte(web3.utils.toBN('0'))) break;
+                const allocation = allocations[i];
+                const amountToAllocate = remainingAmount.lt(allocation.amountIn) ? remainingAmount : allocation.amountIn;
+                if (amountToAllocate.lt(MIN_ALLOCATION)) continue;
+                const output = getOutputForRoute(allocation.route, amountToAllocate);
+                if (output.gt(web3.utils.toBN('0'))) {
+                    swapRoutes.push({
+                        amountIn: amountToAllocate.toString(),
+                        amountOutMin: '0',
+                        path: allocation.route,
+                        amountOut: output
+                    });
+                    remainingAmount = remainingAmount.sub(amountToAllocate);
+                }
+            }
+
+            while (remainingAmount.gt(MIN_ALLOCATION)) {
                 let bestRoute = null;
-                let bestOutput = web3.utils.toBN('0');
+                let bestOutputPerUnit = web3.utils.toBN('0');
                 let bestAmountIn = web3.utils.toBN('0');
 
                 for (const { route } of routeData) {
-                    const amountToTest = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
-                    const output = getOutputForRoute(route, amountToTest);
-                    if (output.gt(bestOutput)) {
-                        bestOutput = output;
+                    const testAmount = remainingAmount.lt(MIN_ALLOCATION) ? remainingAmount : MIN_ALLOCATION;
+                    const output = getOutputForRoute(route, testAmount);
+                    const outputPerUnit = output.div(testAmount);
+                    if (outputPerUnit.gt(bestOutputPerUnit)) {
+                        bestOutputPerUnit = outputPerUnit;
                         bestRoute = route;
-                        bestAmountIn = amountToTest;
+                        bestAmountIn = testAmount;
                     }
                 }
 
-                if (!bestRoute || bestOutput.lte(web3.utils.toBN('0'))) break;
+                if (!bestRoute || bestOutputPerUnit.lte(web3.utils.toBN('0'))) break;
 
                 const existingRoute = swapRoutes.find(r => r.path === bestRoute);
                 if (existingRoute) {
                     existingRoute.amountIn = web3.utils.toBN(existingRoute.amountIn).add(bestAmountIn).toString();
-                    existingRoute.amountOut = existingRoute.amountOut.add(bestOutput);
+                    existingRoute.amountOut = existingRoute.amountOut.add(getOutputForRoute(bestRoute, bestAmountIn));
                 } else {
                     swapRoutes.push({
                         amountIn: bestAmountIn.toString(),
                         amountOutMin: '0',
                         path: bestRoute,
-                        amountOut: bestOutput
+                        amountOut: getOutputForRoute(bestRoute, bestAmountIn)
                     });
                 }
-
                 remainingAmount = remainingAmount.sub(bestAmountIn);
             }
 
@@ -597,7 +606,7 @@
                 }
             }
 
-            return swapRoutes;
+            return swapRoutes.filter(route => web3.utils.toBN(route.amountIn).gt(web3.utils.toBN('0')));
         }
 
         async function checkAllowance(tokenAddress, amount) {
