@@ -3,527 +3,706 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shiba Swap</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>FEED Swap - Woofswap</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #ff9100;
+            --secondary-color: #ff6f61;
+            --gradient-bg: linear-gradient(180deg, #1e1e2f 0%, #2a2a3d 100%);
+            --card-bg: #2c2f48;
+            --input-bg: #373b5c;
+            --text-color: #ffffff;
+            --border-radius: 15px;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
         body {
             font-family: 'Poppins', sans-serif;
-            background: #000;
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .header {
+            background: var(--gradient-bg);
+            color: var(--text-color);
             padding: 20px;
-            background: #1C2526;
-            width: 100%;
-            text-align: center;
-            border-bottom: 3px solid #FF6200;
-        }
-        .header-top {
+            min-height: 100vh;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            padding: 0 40px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .header-top .balance {
-            font-size: 1.3em;
-            color: #FF6200;
-            font-weight: 600;
-        }
-        .header-top .actions {
-            display: flex;
-            gap: 15px;
-        }
-        .action-btn {
-            background: #333;
-            color: #fff;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .action-btn:hover {
-            background: #FF6200;
-        }
-        .header h1 {
-            font-size: 2.5em;
-            color: #FF6200;
-            margin-top: 10px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
         }
         .container {
             width: 100%;
-            max-width: 1000px;
-            padding: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-            flex-grow: 1;
+            max-width: 480px;
+            background: var(--card-bg);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            position: relative;
         }
-        .section {
-            background: #1C2526;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 20px rgba(255, 98, 0, 0.1);
-            border: 1px solid #FF6200;
-            text-align: center;
-        }
-        .section-title {
-            font-size: 1.8em;
-            color: #FF6200;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .input-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        select, input {
+        .header {
+            background: linear-gradient(90deg, var(--secondary-color) 0%, var(--primary-color) 100%);
             padding: 12px;
-            border: none;
-            border-radius: 10px;
-            background: #333;
-            color: #fff;
-            font-size: 1em;
+            border-radius: var(--border-radius);
             text-align: center;
-            transition: all 0.3s;
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 20px;
         }
-        select:focus, input:focus {
-            outline: none;
-            box-shadow: 0 0 8px #FF6200;
-            background: #444;
-        }
-        .button-group {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        button {
-            background: #FF6200;
-            color: #fff;
+        .connect-section button {
+            padding: 12px;
+            background: var(--primary-color);
+            color: var(--text-color);
             border: none;
-            padding: 12px 25px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            transition: background 0.2s;
+            margin-bottom: 10px;
+        }
+        .connect-section button:hover { background: #e68a00; }
+        .swap-box {
+            background: var(--input-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .balance-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            color: #ff9100;
+        }
+        .token-select {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: var(--card-bg);
             border-radius: 10px;
             cursor: pointer;
-            font-size: 1em;
-            font-weight: 600;
-            transition: all 0.3s;
-            box-shadow: 0 4px 10px rgba(255, 98, 0, 0.3);
+            margin-bottom: 10px;
         }
-        button:hover {
-            background: #E05500;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(255, 98, 0, 0.5);
-        }
-        button:disabled {
-            background: #666;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        button.loading {
-            opacity: 0.7;
-            pointer-events: none;
-        }
-        .info-panel {
-            background: #333;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            font-size: 0.95em;
-            color: #fff;
-            line-height: 1.6;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            justify-content: center;
+        .token-select div {
+            display: flex;
             align-items: center;
         }
-        .modal-content {
-            background: #1C2526;
-            padding: 25px;
-            border-radius: 15px;
-            text-align: center;
-            color: #fff;
-            max-width: 400px;
-            box-shadow: 0 8px 20px rgba(255, 98, 0, 0.2);
-            border: 1px solid #FF6200;
+        .token-select img {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
         }
-        .modal-content p {
-            margin-bottom: 20px;
-            font-size: 1.1em;
+        .token-select .placeholder {
+            width: 24px;
+            height: 24px;
+            background: #4a4f7a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
         }
-        .modal-content button {
-            padding: 10px 20px;
-        }
-        footer {
-            background: #1C2526;
-            text-align: center;
-            padding: 15px;
+        select, input {
             width: 100%;
-            color: #fff;
-            font-size: 0.9em;
-            border-top: 3px solid #FF6200;
+            padding: 10px;
+            background: var(--input-bg);
+            border: none;
+            border-radius: 10px;
+            color: var(--text-color);
+            font-size: 1em;
+            text-align: right;
         }
-        @media (max-width: 768px) {
-            .header h1 { font-size: 2em; }
-            .header-top { padding: 0 20px; }
-            .header-top .balance { font-size: 1.1em; }
-            .container { padding: 20px; }
-            .section { padding: 20px; }
-            .section-title { font-size: 1.5em; }
-            .input-group { grid-template-columns: 1fr; }
-            button, select, input { font-size: 0.9em; padding: 10px; }
-            .button-group { flex-direction: column; gap: 10px; }
+        .percentage-buttons {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .percentage-buttons button {
+            padding: 5px 10px;
+            background: #4a4f7a;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: var(--text-color);
+            flex: 1;
+        }
+        .percentage-buttons button:hover { background: #5a5f8a; }
+        .swap-button {
+            padding: 15px;
+            background: var(--primary-color);
+            color: var(--text-color);
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .swap-button:disabled {
+            background: #4a4f7a;
+            cursor: not-allowed;
+        }
+        .swap-button:hover:not(:disabled) { background: #e68a00; }
+        .status {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .swap-note {
+            font-size: 0.9em;
+            color: #ff9100;
+            margin-top: 5px;
+            text-align: left;
+        }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 5px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .dog-section {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .dog-section img {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 10px;
+        }
+        .dog-message {
+            font-size: 0.9em;
+            color: var(--secondary-color);
+            font-style: italic;
+        }
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .header { font-size: 1.1em; }
+            .percentage-buttons button { padding: 5px; }
+            .dog-section img { width: 50px; height: 50px; }
+            .dog-message { font-size: 0.8em; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-top">
-            <span id="boneBalance">0 BONE</span>
-            <div class="actions">
-                <button class="action-btn" onclick="window.open('https://x.com/woofswap', '_blank')"><i class="fab fa-twitter"></i></button>
-                <button class="action-btn" onclick="window.open('https://t.me/ShibariumSRC20', '_blank')"><i class="fab fa-telegram-plane"></i></button>
-            </div>
-        </div>
-        <h1>Shiba Swap</h1>
-    </div>
     <div class="container">
-        <div class="section">
-            <div class="section-title">Connect Wallet</div>
-            <button id="connectButton">Connect MetaMask</button>
-            <div class="info-panel">Wallet: <span id="walletAddress">Not connected</span></div>
+        <div class="header">FEED Swap</div>
+        <div class="connect-section">
+            <button id="connectWalletButton">Connect Wallet</button>
+            <div id="networkStatus" class="status">Click to connect...</div>
         </div>
-        <div class="section">
-            <div class="section-title">Buy Tokens</div>
-            <div class="input-group">
-                <input type="text" id="targetToken" placeholder="Target Token Address">
-                <select id="payToken">
-                    <option value="BONE">BONE</option>
-                    <option value="0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834">WOOF</option>
-                    <option value="0xeCe898EdCc0AF91430603175F945D8de75291c70">DAMN</option>
-                    <option value="0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0">FEED</option>
-                </select>
-                <input type="text" id="payAmount" placeholder="Amount to Pay (BONE or Token)">
+        <div class="swap-box">
+            <div class="balance-row">
+                <span>Buy FEED with</span>
+                <span id="buyBalance">Balance: 0</span>
             </div>
-            <div class="button-group">
-                <button id="checkBuyRoutesButton">Check Routes</button>
-                <button id="buyButton" disabled>Buy</button>
+            <select id="payToken">
+                <option value="BONE">BONE</option>
+                <option value="0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834">WOOF</option>
+                <option value="0x0cCD687CC6F8461170336D8e8cf46A39313DEab9">LUISA</option>
+            </select>
+            <input type="number" id="payAmount" placeholder="0.0" step="0.01">
+            <div class="percentage-buttons">
+                <button onclick="setPercentage(25)">25%</button>
+                <button onclick="setPercentage(50)">50%</button>
+                <button onclick="setPercentage(75)">75%</button>
+                <button onclick="setPercentage(100)">MAX</button>
             </div>
-            <div class="info-panel" id="buyRoutesInfo"></div>
+            <div class="swap-note" id="buyNote"></div>
         </div>
-        <div class="section">
-            <div class="section-title">Sell Tokens</div>
-            <div class="input-group">
-                <input type="text" id="sellToken" placeholder="Token to Sell">
-                <input type="text" id="sellAmount" placeholder="Amount to Sell">
-                <select id="receiveToken">
-                    <option value="BONE">BONE</option>
-                    <option value="0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834">WOOF</option>
-                    <option value="0xeCe898EdCc0AF91430603175F945D8de75291c70">DAMN</option>
-                    <option value="0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0">FEED</option>
-                </select>
+        <button class="swap-button" id="buyButton" onclick="buyFEED()">Buy FEED</button>
+        <div class="swap-box">
+            <div class="balance-row">
+                <span>Sell FEED for BONE</span>
+                <span id="sellBalance">Balance: 0</span>
             </div>
-            <div class="button-group">
-                <button id="checkSellRoutesButton">Check Routes</button>
-                <button id="sellButton" disabled>Sell</button>
+            <input type="number" id="sellAmount" placeholder="0.0" step="0.01">
+            <div class="percentage-buttons">
+                <button onclick="setSellPercentage(25)">25%</button>
+                <button onclick="setSellPercentage(50)">50%</button>
+                <button onclick="setSellPercentage(75)">75%</button>
+                <button onclick="setSellPercentage(100)">MAX</button>
             </div>
-            <div class="info-panel" id="sellRoutesInfo"></div>
+            <div class="swap-note" id="sellNote"></div>
         </div>
-    </div>
-    <footer>Powered by Shibarium © 2025</footer>
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <p id="modalMessage"></p>
-            <button onclick="closeModal()">OK</button>
+        <button class="swap-button" id="sellButton" onclick="sellFEED()">Sell FEED</button>
+        <div class="dog-section">
+            <img src="images/shiba.gif" alt="Shiba Dog">
+            <div class="dog-message" id="dogMessage">"Woof! Connect your wallet to start swapping, pup!"</div>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
     <script>
-        let web3, accounts, routerContract, factoryContract, woofswapBuyContract;
-        const ROUTER_ADDRESS = "0x96b16aBD53Bfd765F4CD118590C1d0be8B57DE24";
-        const FACTORY_ADDRESS = "0xB9fbdFA27B7ba8BB2d4bB4aB399e4c55F0F7F83a";
-        const WOOFBUY_ADDRESS = "0xA3A91a8CcA355B4Fd9A5d21E145C1595C5b3C054";
-        const WBONE_ADDRESS = "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd";
-        const TOKENS = {
-            BONE: WBONE_ADDRESS,
-            WOOF: "0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834",
-            DAMN: "0xeCe898EdCc0AF91430603175F945D8de75291c70",
-            FEED: "0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0"
+        const tokens = {
+            BONE: { address: "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd", symbol: "BONE", logo: "images/bone.png", isNative: true },
+            WOOF: { address: "0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834", symbol: "WOOF", logo: "images/woof.png" },
+            LUISA: { address: "0x0cCD687CC6F8461170336D8e8cf46A39313DEab9", symbol: "LUISA", logo: "images/luisa.png" },
+            FEED: { address: "0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0", symbol: "FEED", logo: "images/feed.png" }
         };
-        const ROUTER_ABI = [{"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapExactTokensForTokens","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapExactETHForTokens","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapExactTokensForETH","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"}];
-        const FACTORY_ABI = [{"inputs":[{"internalType":"address","name":"tokenA","type":"address"},{"internalType":"address","name":"tokenB","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"name":"getPair","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}];
-        const WOOFBUY_ABI = [{"inputs":[{"internalType":"address","name":"payToken","type":"address"},{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct WoofswapBuy.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithMultipleRoutes","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"payable","type":"function"},{"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct WoofswapBuy.SwapRoute[]","name":"routes","type":"tuple[]"}],"name":"getExpectedAmountsOut","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"view","type":"function"}];
-        const IERC20_ABI = [{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}];
-        const shibariumMainnet = { chainId: 109, chainName: 'Shibarium', nativeCurrency: { name: 'BONE', symbol: 'BONE', decimals: 18 }, rpcUrls: ['https://www.shibrpc.com'], blockExplorerUrls: ['https://shibariumscan.io'] };
+        const routerAddress = "0x96b16aBD53Bfd765F4CD118590C1d0be8B57DE24";
+        const factoryAddress = "0xB9fbdFA27B7ba8BB2d4bB4aB399e4c55F0F7F83a";
+        const feedBuyAndSellAddress = "0x852f466F286F3fa32B6f3ca1D65080D1070Dabf4";
+        const routerAbi = [
+            {"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"view","type":"function"}
+        ];
+        const factoryAbi = [
+            {"inputs":[{"internalType":"address","name":"tokenA","type":"address"},{"internalType":"address","name":"tokenB","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"name":"getPair","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+        ];
+        const feedBuyAndSellAbi = [
+            {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithBONE","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"payable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithLUISA","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithWOOF","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"}],"name":"getExpectedAmountsOut","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"sellToBONE","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"}
+        ];
+        const erc20Abi = [
+            {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
+            {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"success","type":"bool"}],"type":"function"}
+        ];
+        const shibarium = {
+            chainId: 109,
+            chainName: 'Shibarium',
+            nativeCurrency: { name: 'BONE', symbol: 'BONE', decimals: 18 },
+            rpcUrls: ['https://rpc.shibrpc.com'],
+            blockExplorerUrls: ['https://shibariumscan.io']
+        };
+        let web3, account, router, factory, feedBuyAndSell;
+        let payBalance = '0';
+        let feedBalance = '0';
+        const defaultSlippage = 0.005;
 
-        function showModal(message) {
-            document.getElementById('modalMessage').innerHTML = message;
-            document.getElementById('modal').style.display = 'flex';
+        const dogMessages = {
+            connectStart: ["Woof woof! Sniffing out your wallet, hold tight, human!","Arf! Digging into Shibarium, let’s fetch that wallet!","Bow wow! Connecting to your stash, stay pawsitive!","Woof! I smell a wallet, let’s link it up quick!"],
+            connectSuccess: ["Arf arf! You’re in, pup! Time to chase some FEED!","Woof! Wallet’s hooked, ready to roll in Shibarium!","Yip yip! Connected, hooman! Let’s swap some treats!","Bow wow! Welcome aboard, let’s sniff out some swaps!"],
+            connectFail: ["Grrr... Wallet slipped away, try again, hooman!","Woof? No wallet scent detected, give it another go!","Arf arf! Something barked up, retry connecting, pup!","Ruff! Wallet’s hiding, let’s dig it out again!"],
+            setPercentage: (percent) => [`Woof! ${percent}% in? You’re a bold Shib, hooman!`,`Arf arf! Going ${percent}%? Let’s dig into that swap!`,`Bow wow! ${percent}% of the stash? Pawsitively daring!`,`Yip! ${percent}%? You’re chasing big bones today!`],
+            calcStart: ["Woof! Sniffing out the best routes, hang tight!","Arf! Digging up some swap numbers, stay put, pup!","Bow wow! Crunching bones, I’ll fetch the output soon!","Ruff! Calculating your treat, give me a sec, hooman!"],
+            calcSuccess: (amount, symbol) => [`Arf! Found ya ${amount} ${symbol}! Ready to swap, pup?`,`Woof woof! Snagged ${amount} ${symbol}, let’s roll!`,`Yip yip! Dug up ${amount} ${symbol}, happy tail wags!`,`Bow wow! ${amount} ${symbol} sniffed out, swap time!`],
+            calcFail: ["Grrr... No path for these bones, try a new pair, pup!","Woof? Swap trail’s cold, pick another token, hooman!","Arf arf! Couldn’t fetch the output, let’s retry!","Ruff! Swap math barked up, give it another go!"],
+            swapStart: ["Woof woof! Swapping time, let’s fetch those tokens!","Arf! Launching the swap, hold onto your leash, pup!","Bow wow! Trading bones, here we go, Shib style!","Yip! Swapping in Shibarium, let’s make it pawsome!"],
+            swapSuccess: ["Arf arf! Swap done, you’re a Woofswap champ, hooman!","Woof! Tokens fetched, tail-wagging success, pup!","Bow wow! Swapped like a pro, time to celebrate!","Yip yip! Swap complete, you’re the top dog now!"],
+            swapFail: ["Grrr... Swap didn’t work, let’s try again, pup!","Woof? Swap got lost, retry it, clever hooman!","Arf! Token chase failed, another go, Shib friend?","Ruff ruff! Swap slipped, let’s dig it up again!"],
+            swapNoAmount: ["Arf! No amount? How am I supposed to swap air?!","Woof woof! Gimme a number, pup, or we’re stuck!","Bow wow! Empty swap? Fill it up, hooman!","Ruff! Amount’s missing, let’s fetch some digits!"],
+            userDenied: ["Woof woof! You scared me off, hooman! Approve next time, pup!","Arf! No swap today? You’re a tricky one, let’s try again!","Bow wow! Rejected my trade? Give me a bone next time!","Ruff ruff! You denied me, hooman! Let’s wag back later!"]
+        };
+
+        function getRandomMessage(type, param1, param2) {
+            const messages = dogMessages[type];
+            if (typeof messages === 'function') {
+                const options = messages(param1, param2);
+                return options[Math.floor(Math.random() * options.length)];
+            }
+            return messages[Math.floor(Math.random() * messages.length)];
         }
 
-        function closeModal() {
-            document.getElementById('modal').style.display = 'none';
-        }
-
-        async function updateBoneBalance() {
-            if (!web3 || !accounts) return;
-            const balance = await web3.eth.getBalance(accounts[0]);
-            document.getElementById('boneBalance').innerText = `${parseFloat(web3.utils.fromWei(balance, 'ether')).toFixed(2)} BONE`;
-        }
-
-        async function updateWalletAddress() {
-            document.getElementById('walletAddress').innerText = accounts ? `${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}` : 'Not connected';
-        }
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('connectWalletButton').addEventListener('click', connectWallet);
+            document.getElementById('payToken').addEventListener('change', updateBalances);
+            setupWalletListeners();
+        });
 
         async function connectWallet() {
-            const connectButton = document.getElementById('connectButton');
+            const status = document.getElementById('networkStatus');
+            const connectButton = document.getElementById('connectWalletButton');
+            const dogMessage = document.getElementById('dogMessage');
             try {
-                if (!window.ethereum) throw new Error('No wallet detected. Install MetaMask.');
-                connectButton.classList.add('loading');
+                if (!window.ethereum) throw new Error("No wallet detected. Please install MetaMask or another wallet.");
+                connectButton.disabled = true;
+                status.innerText = "Connecting...";
+                dogMessage.innerText = getRandomMessage('connectStart');
                 web3 = new Web3(window.ethereum);
-                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                if (!accounts.length) throw new Error('Please unlock your wallet.');
-                const chainId = await web3.eth.getChainId();
-                if (chainId !== 109) {
-                    try {
-                        await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: web3.utils.numberToHex(109) }] });
-                    } catch (switchError) {
-                        if (switchError.code === 4902) await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [shibariumMainnet] });
-                        else throw new Error('Failed to switch network.');
-                    }
-                }
-                routerContract = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
-                factoryContract = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
-                woofswapBuyContract = new web3.eth.Contract(WOOFBUY_ABI, WOOFBUY_ADDRESS);
-                showModal('Connected to Shibarium!');
-                updateWalletAddress();
-                updateBoneBalance();
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (!accounts.length) throw new Error("No accounts found. Please unlock your wallet.");
+                account = accounts[0];
+                await switchToShibarium();
+                router = new web3.eth.Contract(routerAbi, routerAddress);
+                factory = new web3.eth.Contract(factoryAbi, factoryAddress);
+                feedBuyAndSell = new web3.eth.Contract(feedBuyAndSellAbi, feedBuyAndSellAddress);
+                updateUIAfterConnect();
+                await updateBalances();
             } catch (error) {
-                showModal(error.message);
+                status.innerText = "Failed: " + error.message;
+                dogMessage.innerText = getRandomMessage('connectFail');
+                console.error(error);
+                resetUI();
             } finally {
-                connectButton.classList.remove('loading');
+                connectButton.disabled = false;
             }
         }
 
-        async function checkBuyRoutes() {
-            const checkButton = document.getElementById('checkBuyRoutesButton');
-            const buyButton = document.getElementById('buyButton');
-            try {
-                if (!web3 || !accounts) throw new Error('Connect wallet first!');
-                checkButton.classList.add('loading');
-                const targetToken = document.getElementById('targetToken').value;
-                let payToken = document.getElementById('payToken').value;
-                const payAmount = document.getElementById('payAmount').value;
-                if (!web3.utils.isAddress(targetToken) || !payAmount || payAmount <= 0) throw new Error('Invalid input!');
-                const weiAmount = web3.utils.toWei(payAmount, 'ether');
-                payToken = payToken === 'BONE' ? WBONE_ADDRESS : payToken;
-                const baseTokens = Object.values(TOKENS).filter(t => t !== payToken);
-                let routes = [], totalOutput = 0;
-                for (const midToken of baseTokens) {
-                    let route = [];
-                    if (payToken !== midToken) {
-                        const pair1 = await factoryContract.methods.getPair(payToken, midToken, false).call();
-                        if (pair1 === '0x0000000000000000000000000000000000000000') continue;
-                        route.push({ from: payToken, to: midToken, stable: false });
+        async function switchToShibarium() {
+            const chainId = await web3.eth.getChainId();
+            if (Number(chainId) !== 109) {
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: "0x6d" }]
+                    });
+                } catch (switchError) {
+                    if (switchError.code === 4902) {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [shibarium]
+                        });
+                    } else {
+                        throw switchError;
                     }
-                    const pair2 = await factoryContract.methods.getPair(midToken, targetToken, false).call();
-                    if (pair2 === '0x0000000000000000000000000000000000000000') continue;
-                    route.push({ from: midToken, to: targetToken, stable: false });
-                    const amounts = await routerContract.methods.getAmountsOut(weiAmount, route).call();
+                }
+            }
+        }
+
+        function updateUIAfterConnect() {
+            const connectButton = document.getElementById('connectWalletButton');
+            const status = document.getElementById('networkStatus');
+            const dogMessage = document.getElementById('dogMessage');
+            connectButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
+            status.innerText = "Connected to Shibarium";
+            dogMessage.innerText = getRandomMessage('connectSuccess');
+        }
+
+        function resetUI() {
+            const connectButton = document.getElementById('connectWalletButton');
+            const status = document.getElementById('networkStatus');
+            connectButton.textContent = "Connect Wallet";
+            status.innerText = "Click to connect...";
+        }
+
+        function setupWalletListeners() {
+            if (!window.ethereum) return;
+            window.ethereum.on('accountsChanged', async (newAccounts) => {
+                if (newAccounts.length) {
+                    account = newAccounts[0];
+                    if (web3) {
+                        await switchToShibarium();
+                        router = new web3.eth.Contract(routerAbi, routerAddress);
+                        factory = new web3.eth.Contract(factoryAbi, factoryAddress);
+                        feedBuyAndSell = new web3.eth.Contract(feedBuyAndSellAbi, feedBuyAndSellAddress);
+                        updateUIAfterConnect();
+                        await updateBalances();
+                    } else {
+                        await connectWallet();
+                    }
+                } else {
+                    web3 = null;
+                    account = null;
+                    router = null;
+                    factory = null;
+                    feedBuyAndSell = null;
+                    resetUI();
+                    document.getElementById('dogMessage').innerText = getRandomMessage('connectFail');
+                }
+            });
+            window.ethereum.on('chainChanged', async (chainId) => {
+                if (parseInt(chainId, 16) !== 109) {
+                    web3 = null;
+                    account = null;
+                    router = null;
+                    factory = null;
+                    feedBuyAndSell = null;
+                    resetUI();
+                    document.getElementById('networkStatus').innerText = "Wrong network. Reconnect to Shibarium.";
+                    document.getElementById('dogMessage').innerText = "Woof! Wrong chain, pup! Switch to Shibarium!";
+                } else if (account) {
+                    await connectWallet();
+                }
+            });
+        }
+
+        async function updateBalances() {
+            if (!web3 || !account) return;
+            const payTokenSymbol = document.getElementById('payToken').value;
+            const payToken = tokens[payTokenSymbol];
+            if (payToken.isNative) {
+                payBalance = await web3.eth.getBalance(account);
+                document.getElementById('buyBalance').innerText = `Balance: ${web3.utils.fromWei(payBalance, 'ether')}`;
+            } else {
+                const tokenContract = new web3.eth.Contract(erc20Abi, payToken.address);
+                payBalance = await tokenContract.methods.balanceOf(account).call();
+                document.getElementById('buyBalance').innerText = `Balance: ${web3.utils.fromWei(payBalance, 'ether')}`;
+            }
+            const feedContract = new web3.eth.Contract(erc20Abi, tokens.FEED.address);
+            feedBalance = await feedContract.methods.balanceOf(account).call();
+            document.getElementById('sellBalance').innerText = `Balance: ${web3.utils.fromWei(feedBalance, 'ether')}`;
+        }
+
+        function setPercentage(percentage) {
+            const dogMessage = document.getElementById('dogMessage');
+            if (!payBalance || !web3) {
+                document.getElementById('networkStatus').innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+            let amount;
+            if (percentage === 100) {
+                amount = web3.utils.fromWei(payBalance, 'ether');
+            } else {
+                amount = web3.utils.fromWei(payBalance, 'ether') * (percentage / 100);
+            }
+            if (percentage === 100 && document.getElementById('payToken').value === 'BONE') {
+                amount = Math.max(0, amount - 0.01);
+            }
+            document.getElementById('payAmount').value = amount.toString();
+            dogMessage.innerText = getRandomMessage('setPercentage', percentage);
+        }
+
+        function setSellPercentage(percentage) {
+            const dogMessage = document.getElementById('dogMessage');
+            if (!feedBalance || !web3) {
+                document.getElementById('networkStatus').innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+            let amount;
+            if (percentage === 100) {
+                amount = web3.utils.fromWei(feedBalance, 'ether');
+            } else {
+                amount = web3.utils.fromWei(feedBalance, 'ether') * (percentage / 100);
+            }
+            document.getElementById('sellAmount').value = amount.toString();
+            dogMessage.innerText = getRandomMessage('setPercentage', percentage);
+        }
+
+        async function buyFEED() {
+            const dogMessage = document.getElementById('dogMessage');
+            const status = document.getElementById('networkStatus');
+            const buyButton = document.getElementById('buyButton');
+            const buyNote = document.getElementById('buyNote');
+            if (!web3 || !account) {
+                status.innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+            const payTokenSymbol = document.getElementById('payToken').value;
+            const payToken = tokens[payTokenSymbol];
+            const amountIn = document.getElementById('payAmount').value;
+            if (!amountIn || amountIn <= 0) {
+                status.innerText = "Please enter a valid amount.";
+                dogMessage.innerText = getRandomMessage('swapNoAmount');
+                return;
+            }
+            let amountInWei;
+            try {
+                amountInWei = web3.utils.toBN(web3.utils.toWei(amountIn, 'ether'));
+            } catch (error) {
+                status.innerText = "Invalid amount entered.";
+                dogMessage.innerText = getRandomMessage('swapNoAmount');
+                return;
+            }
+            if (!payToken.isNative) {
+                const tokenContract = new web3.eth.Contract(erc20Abi, payToken.address);
+                const tokenBalance = await tokenContract.methods.balanceOf(account).call();
+                if (web3.utils.toBN(tokenBalance).lt(amountInWei)) {
+                    status.innerText = "Insufficient token balance.";
+                    dogMessage.innerText = "Woof! Not enough bones to swap, pup!";
+                    return;
+                }
+            }
+            let possibleRoutes = [];
+            if (payTokenSymbol === 'BONE') {
+                possibleRoutes = [
+                    [{ from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.BONE.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.BONE.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }]
+                ];
+            } else if (payTokenSymbol === 'WOOF') {
+                possibleRoutes = [
+                    [{ from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }]
+                ];
+            } else if (payTokenSymbol === 'LUISA') {
+                possibleRoutes = [
+                    [{ from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
+                    [{ from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }]
+                ];
+            }
+            buyNote.innerHTML = `Checking routes... <span class="spinner"></span>`;
+            dogMessage.innerText = getRandomMessage('calcStart');
+            let routes = [], totalOutput = 0;
+            try {
+                for (const route of possibleRoutes) {
+                    let valid = true;
+                    for (let i = 0; i < route.length; i++) {
+                        const pair = await factory.methods.getPair(route[i].from, route[i].to, false).call();
+                        if (pair === '0x0000000000000000000000000000000000000000') {
+                            valid = false;
+                            break;
+                        }
+                    }
+                    if (!valid) continue;
+                    const amounts = await router.methods.getAmountsOut(amountInWei, route).call();
                     const output = parseFloat(web3.utils.fromWei(amounts[amounts.length - 1], 'ether'));
                     routes.push({ path: route, output });
                     totalOutput += output;
                 }
-                if (!routes.length) throw new Error('No available routes!');
+                if (!routes.length) {
+                    buyNote.innerHTML = 'No available routes found.';
+                    dogMessage.innerText = getRandomMessage('calcFail');
+                    return;
+                }
                 routes.sort((a, b) => b.output - a.output);
                 const allocation = routes.map(r => ({ ...r, share: (r.output / totalOutput) * 100 }));
                 let html = 'Available Routes:<br>';
                 allocation.forEach(r => {
-                    const path = r.path.map(p => Object.keys(TOKENS).find(k => TOKENS[k] === p.from) || p.from).join(' -> ') + ' -> ' + targetToken.slice(0, 6);
+                    const path = r.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.from) || p.from).join(' -> ') + ' -> FEED';
                     html += `${path}: ${r.output.toFixed(2)} (${r.share.toFixed(1)}%)<br>`;
                 });
-                html += `Total: ${totalOutput.toFixed(2)}`;
-                document.getElementById('buyRoutesInfo').innerHTML = html;
+                html += `Total: ${totalOutput.toFixed(2)} FEED`;
+                buyNote.innerHTML = html;
+                dogMessage.innerText = getRandomMessage('calcSuccess', totalOutput.toFixed(2), 'FEED');
                 const swapRoutes = allocation.map(r => ({
-                    amountIn: web3.utils.toWei((payAmount * r.share / 100).toString(), 'ether'),
+                    amountIn: web3.utils.toWei((amountIn * r.share / 100).toString(), 'ether'),
                     amountOutMin: 0,
                     path: r.path
                 }));
-                const expectedAmounts = await woofswapBuyContract.methods.getExpectedAmountsOut(swapRoutes).call();
+                const expectedAmounts = await feedBuyAndSell.methods.getExpectedAmountsOut(swapRoutes).call();
                 for (let i = 0; i < swapRoutes.length; i++) {
                     swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
-                window.buyRoutes = swapRoutes;
-                window.buyPayToken = document.getElementById('payToken').value;
-                buyButton.disabled = false;
-            } catch (error) {
-                showModal(error.message);
-                document.getElementById('buyRoutesInfo').innerHTML = '';
-                buyButton.disabled = true;
-            } finally {
-                checkButton.classList.remove('loading');
-            }
-        }
-
-        async function buyTokens() {
-            const buyButton = document.getElementById('buyButton');
-            try {
-                if (!web3 || !accounts || !window.buyRoutes) throw new Error('Check routes first!');
-                buyButton.classList.add('loading');
-                const payToken = window.buyPayToken;
-                const totalAmount = window.buyRoutes.reduce((sum, r) => sum + BigInt(r.amountIn), 0n);
                 const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-                if (payToken === 'BONE') {
-                    await woofswapBuyContract.methods.buyWithMultipleRoutes(
-                        WBONE_ADDRESS,
-                        totalAmount.toString(),
-                        window.buyRoutes,
-                        deadline
-                    ).send({ from: accounts[0], value: totalAmount.toString() });
-                } else {
-                    await woofswapBuyContract.methods.buyWithMultipleRoutes(
-                        payToken,
-                        totalAmount.toString(),
-                        window.buyRoutes,
-                        deadline
-                    ).send({ from: accounts[0] });
+                buyButton.disabled = true;
+                status.innerText = "Processing buy...";
+                dogMessage.innerText = getRandomMessage('swapStart');
+                if (payTokenSymbol === 'BONE') {
+                    await feedBuyAndSell.methods.buyWithBONE(swapRoutes, deadline).send({ from: account, value: amountInWei });
+                } else if (payTokenSymbol === 'WOOF') {
+                    await feedBuyAndSell.methods.buyWithWOOF(amountInWei.toString(), swapRoutes, deadline).send({ from: account });
+                } else if (payTokenSymbol === 'LUISA') {
+                    await feedBuyAndSell.methods.buyWithLUISA(amountInWei.toString(), swapRoutes, deadline).send({ from: account });
                 }
-                showModal('Purchase successful!');
-                updateBoneBalance();
+                status.innerText = "Buy successful!";
+                dogMessage.innerText = getRandomMessage('swapSuccess');
+                document.getElementById('payAmount').value = '';
+                await updateBalances();
             } catch (error) {
-                showModal(`Purchase failed: ${error.message}`);
+                console.error("Buy failed:", error);
+                let errorMessage = error.message || "Unknown error";
+                if (error.message.includes("User denied transaction signature")) {
+                    errorMessage = "User denied transaction signature.";
+                    dogMessage.innerText = getRandomMessage('userDenied');
+                } else {
+                    dogMessage.innerText = getRandomMessage('swapFail');
+                }
+                status.innerText = errorMessage;
+                buyNote.innerHTML = '';
             } finally {
-                buyButton.classList.remove('loading');
+                buyButton.disabled = false;
             }
         }
 
-        async function checkSellRoutes() {
-            const checkButton = document.getElementById('checkSellRoutesButton');
+        async function sellFEED() {
+            const dogMessage = document.getElementById('dogMessage');
+            const status = document.getElementById('networkStatus');
             const sellButton = document.getElementById('sellButton');
+            const sellNote = document.getElementById('sellNote');
+            if (!web3 || !account) {
+                status.innerText = "Please connect wallet first.";
+                dogMessage.innerText = getRandomMessage('connectFail');
+                return;
+            }
+            const amountIn = document.getElementById('sellAmount').value;
+            if (!amountIn || amountIn <= 0) {
+                status.innerText = "Please enter a valid amount.";
+                dogMessage.innerText = getRandomMessage('swapNoAmount');
+                return;
+            }
+            let amountInWei;
             try {
-                if (!web3 || !accounts) throw new Error('Connect wallet first!');
-                checkButton.classList.add('loading');
-                const sellToken = document.getElementById('sellToken').value;
-                const sellAmount = document.getElementById('sellAmount').value;
-                let receiveToken = document.getElementById('receiveToken').value;
-                if (!web3.utils.isAddress(sellToken) || !sellAmount || sellAmount <= 0) throw new Error('Invalid input!');
-                const weiAmount = web3.utils.toWei(sellAmount, 'ether');
-                receiveToken = receiveToken === 'BONE' ? WBONE_ADDRESS : receiveToken;
-                const baseTokens = Object.values(TOKENS).filter(t => t !== receiveToken);
-                let routes = [], totalOutput = 0;
-                for (const midToken of baseTokens) {
-                    let route = [];
-                    const pair1 = await factoryContract.methods.getPair(sellToken, midToken, false).call();
-                    if (pair1 === '0x0000000000000000000000000000000000000000') continue;
-                    route.push({ from: sellToken, to: midToken, stable: false });
-                    if (midToken !== receiveToken) {
-                        const pair2 = await factoryContract.methods.getPair(midToken, receiveToken, false).call();
-                        if (pair2 === '0x0000000000000000000000000000000000000000') continue;
-                        route.push({ from: midToken, to: receiveToken, stable: false });
+                amountInWei = web3.utils.toBN(web3.utils.toWei(amountIn, 'ether'));
+            } catch (error) {
+                status.innerText = "Invalid amount entered.";
+                dogMessage.innerText = getRandomMessage('swapNoAmount');
+                return;
+            }
+            const feedContract = new web3.eth.Contract(erc20Abi, tokens.FEED.address);
+            const tokenBalance = await feedContract.methods.balanceOf(account).call();
+            if (web3.utils.toBN(tokenBalance).lt(amountInWei)) {
+                status.innerText = "Insufficient FEED balance.";
+                dogMessage.innerText = "Woof! Not enough FEED to sell, pup!";
+                return;
+            }
+            const possibleRoutes = [
+                [{ from: tokens.FEED.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }],
+                [{ from: tokens.FEED.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }],
+                [{ from: tokens.FEED.address, to: tokens.BONE.address, stable: false }]
+            ];
+            sellNote.innerHTML = `Checking routes... <span class="spinner"></span>`;
+            dogMessage.innerText = getRandomMessage('calcStart');
+            let routes = [], totalOutput = 0;
+            try {
+                for (const route of possibleRoutes) {
+                    let valid = true;
+                    for (let i = 0; i < route.length; i++) {
+                        const pair = await factory.methods.getPair(route[i].from, route[i].to, false).call();
+                        if (pair === '0x0000000000000000000000000000000000000000') {
+                            valid = false;
+                            break;
+                        }
                     }
-                    const amounts = await routerContract.methods.getAmountsOut(weiAmount, route).call();
+                    if (!valid) continue;
+                    const amounts = await router.methods.getAmountsOut(amountInWei, route).call();
                     const output = parseFloat(web3.utils.fromWei(amounts[amounts.length - 1], 'ether'));
                     routes.push({ path: route, output });
                     totalOutput += output;
                 }
-                if (!routes.length) throw new Error('No available routes!');
+                if (!routes.length) {
+                    sellNote.innerHTML = 'No available routes found.';
+                    dogMessage.innerText = getRandomMessage('calcFail');
+                    return;
+                }
                 routes.sort((a, b) => b.output - a.output);
                 const allocation = routes.map(r => ({ ...r, share: (r.output / totalOutput) * 100 }));
                 let html = 'Available Routes:<br>';
                 allocation.forEach(r => {
-                    const path = [sellToken.slice(0, 6)].concat(r.path.map(p => Object.keys(TOKENS).find(k => TOKENS[k] === p.to) || p.to)).join(' -> ');
+                    const path = ['FEED'].concat(r.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.to) || p.to)).join(' -> ');
                     html += `${path}: ${r.output.toFixed(2)} (${r.share.toFixed(1)}%)<br>`;
                 });
-                html += `Total: ${totalOutput.toFixed(2)}`;
-                document.getElementById('sellRoutesInfo').innerHTML = html;
-                window.sellRoutes = allocation.map(r => ({
-                    amountIn: web3.utils.toWei((sellAmount * r.share / 100).toString(), 'ether'),
+                html += `Total: ${totalOutput.toFixed(2)} BONE`;
+                sellNote.innerHTML = html;
+                dogMessage.innerText = getRandomMessage('calcSuccess', totalOutput.toFixed(2), 'BONE');
+                const swapRoutes = allocation.map(r => ({
+                    amountIn: web3.utils.toWei((amountIn * r.share / 100).toString(), 'ether'),
                     amountOutMin: 0,
                     path: r.path
                 }));
-                window.sellReceiveToken = document.getElementById('receiveToken').value;
-                window.sellToken = sellToken;
-                sellButton.disabled = false;
-            } catch (error) {
-                showModal(error.message);
-                document.getElementById('sellRoutesInfo').innerHTML = '';
-                sellButton.disabled = true;
-            } finally {
-                checkButton.classList.remove('loading');
-            }
-        }
-
-        async function sellTokens() {
-            const sellButton = document.getElementById('sellButton');
-            try {
-                if (!web3 || !accounts || !window.sellRoutes) throw new Error('Check routes first!');
-                sellButton.classList.add('loading');
-                const sellToken = window.sellToken;
-                const receiveToken = window.sellReceiveToken;
-                const totalAmount = window.sellRoutes.reduce((sum, r) => sum + BigInt(r.amountIn), 0n);
-                const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-                const tokenContract = new web3.eth.Contract(IERC20_ABI, sellToken);
-                await tokenContract.methods.approve(ROUTER_ADDRESS, totalAmount.toString()).send({ from: accounts[0] });
-                for (const route of window.sellRoutes) {
-                    if (route.amountIn === '0') continue;
-                    if (receiveToken === 'BONE') {
-                        await routerContract.methods.swapExactTokensForETH(route.amountIn, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
-                    } else {
-                        await routerContract.methods.swapExactTokensForTokens(route.amountIn, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
-                    }
+                const expectedAmounts = await feedBuyAndSell.methods.getExpectedAmountsOut(swapRoutes).call();
+                for (let i = 0; i < swapRoutes.length; i++) {
+                    swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
-                showModal('Sale successful!');
-                updateBoneBalance();
+                const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+                sellButton.disabled = true;
+                status.innerText = "Processing sell...";
+                dogMessage.innerText = getRandomMessage('swapStart');
+                await feedBuyAndSell.methods.sellToBONE(amountInWei.toString(), swapRoutes, deadline).send({ from: account });
+                status.innerText = "Sell successful!";
+                dogMessage.innerText = getRandomMessage('swapSuccess');
+                document.getElementById('sellAmount').value = '';
+                await updateBalances();
             } catch (error) {
-                showModal(`Sale failed: ${error.message}`);
+                console.error("Sell failed:", error);
+                let errorMessage = error.message || "Unknown error";
+                if (error.message.includes("User denied transaction signature")) {
+                    errorMessage = "User denied transaction signature.";
+                    dogMessage.innerText = getRandomMessage('userDenied');
+                } else {
+                    dogMessage.innerText = getRandomMessage('swapFail');
+                }
+                status.innerText = errorMessage;
+                sellNote.innerHTML = '';
             } finally {
-                sellButton.classList.remove('loading');
+                sellButton.disabled = false;
             }
         }
-
-        setInterval(updateBoneBalance, 5000);
-        document.getElementById('connectButton').addEventListener('click', connectWallet);
-        document.getElementById('checkBuyRoutesButton').addEventListener('click', checkBuyRoutes);
-        document.getElementById('buyButton').addEventListener('click', buyTokens);
-        document.getElementById('checkSellRoutesButton').addEventListener('click', checkSellRoutes);
-        document.getElementById('sellButton').addEventListener('click', sellTokens);
-
-        window.ethereum?.on('chainChanged', chainId => {
-            if (parseInt(chainId, 16) !== 109) {
-                showModal('Wrong network. Reconnect to Shibarium.');
-                web3 = null; accounts = null; routerContract = null; factoryContract = null; woofswapBuyContract = null;
-                updateWalletAddress();
-            } else connectWallet();
-        });
-
-        window.ethereum?.on('accountsChanged', newAccounts => {
-            if (newAccounts.length) connectWallet();
-            else {
-                showModal('Wallet disconnected.');
-                web3 = null; accounts = null; routerContract = null; factoryContract = null; woofswapBuyContract = null;
-                updateWalletAddress();
-            }
-        });
     </script>
 </body>
 </html>
