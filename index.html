@@ -509,7 +509,7 @@
         }
 
         async function optimizeRoutes(possibleRoutes, totalAmountInWei, outputToken) {
-            const STEP_AMOUNT = web3.utils.toWei('0.01', 'ether');
+            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('0.01', 'ether'));
             let remainingAmount = web3.utils.toBN(totalAmountInWei);
             const routeAllocations = possibleRoutes.map(route => ({
                 route,
@@ -519,18 +519,15 @@
 
             while (remainingAmount.gt(web3.utils.toBN('0'))) {
                 let bestRouteIndex = -1;
-                let bestEfficiency = 0;
                 let bestOutput = web3.utils.toBN('0');
 
                 for (let i = 0; i < possibleRoutes.length; i++) {
                     const route = possibleRoutes[i];
                     const stepAmount = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
                     const output = await getOutputForRoute(route, stepAmount);
-                    const efficiency = parseFloat(web3.utils.fromWei(output, 'ether')) / parseFloat(web3.utils.fromWei(stepAmount, 'ether'));
-                    if (efficiency > bestEfficiency && output.gt(web3.utils.toBN('0'))) {
-                        bestEfficiency = efficiency;
-                        bestRouteIndex = i;
+                    if (output.gt(bestOutput) && output.gt(web3.utils.toBN('0'))) {
                         bestOutput = output;
+                        bestRouteIndex = i;
                     }
                 }
 
@@ -622,7 +619,7 @@
                 let html = 'AVAILABLE ROUTES:<br>';
                 for (const route of swapRoutes) {
                     const amountInEther = parseFloat(web3.utils.fromWei(route.amountIn, 'ether'));
-                    const outputEther = parseFloat(web3.utils.fromWei(route.amountOut, 'ether'));
+                    const outputEther = parseFloat(web3.utils.fromWei(route.amountOut.toString(), 'ether'));
                     totalOutput = totalOutput.add(web3.utils.toBN(route.amountOut));
                     const path = route.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.from) || p.from).join(' -> ') + ' -> FEED';
                     const share = amountInEther / parseFloat(amountIn) * 100;
@@ -634,7 +631,7 @@
                     swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
 
-                const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput, 'ether'));
+                const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput.toString(), 'ether'));
                 html += `TOTAL: ${totalOutputEther.toFixed(2)} FEED`;
                 buyNote.innerHTML = html;
                 window.buyRoutes = swapRoutes;
@@ -750,7 +747,7 @@
                 let html = 'AVAILABLE ROUTES:<br>';
                 for (const route of swapRoutes) {
                     const amountInEther = parseFloat(web3.utils.fromWei(route.amountIn, 'ether'));
-                    const outputEther = parseFloat(web3.utils.fromWei(route.amountOut, 'ether'));
+                    const outputEther = parseFloat(web3.utils.fromWei(route.amountOut.toString(), 'ether'));
                     totalOutput = totalOutput.add(web3.utils.toBN(route.amountOut));
                     const path = ['FEED'].concat(route.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.to) || p.to)).join(' -> ');
                     const share = amountInEther / parseFloat(amountIn) * 100;
@@ -762,7 +759,7 @@
                     swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
 
-                const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput, 'ether'));
+                const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput.toString(), 'ether'));
                 html += `TOTAL: ${totalOutputEther.toFixed(2)} BONE`;
                 sellNote.innerHTML = html;
                 window.sellRoutes = swapRoutes;
