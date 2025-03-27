@@ -16,6 +16,7 @@
             --border-radius: 15px;
             --error-color: #ff4444;
             --success-color: #00C851;
+            --alert-bg: rgba(0, 0, 0, 0.8);
         }
         * {
             box-sizing: border-box;
@@ -49,6 +50,28 @@
             font-size: 1.3em;
             font-weight: 600;
             margin-bottom: 20px;
+        }
+        .alert-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--alert-bg);
+            color: var(--text-color);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            max-width: 90%;
+            z-index: 1000;
+            font-size: 0.9em;
+        }
+        .alert-box.success { color: var(--success-color); }
+        .alert-box.error { color: var(--error-color); }
+        .alert-box .close {
+            cursor: pointer;
+            font-size: 1.2em;
         }
         .connect-section button {
             padding: 12px;
@@ -127,19 +150,13 @@
             cursor: not-allowed;
         }
         .swap-button:hover:not(:disabled) { background: #e68a00; }
-        .status {
-            margin-top: 10px;
-            font-size: 0.9em;
-            text-align: center;
-        }
-        .status.error { color: var(--error-color); }
-        .status.success { color: var(--success-color); }
         .swap-note {
             font-size: 0.9em;
             color: #ff9100;
             margin-top: 5px;
             text-align: left;
-            word-wrap: break-word;
+            line-height: 1.5;
+            white-space: pre-wrap;
         }
         .spinner {
             display: inline-block;
@@ -160,15 +177,20 @@
             .container { padding: 15px; }
             .header { font-size: 1.1em; }
             .percentage-buttons button { padding: 5px; }
+            .swap-note { font-size: 0.8em; }
+            .alert-box { font-size: 0.8em; padding: 8px 15px; }
         }
     </style>
 </head>
 <body>
+    <div id="alertBox" class="alert-box">
+        <span id="alertMessage"></span>
+        <span class="close" onclick="hideAlert()">×</span>
+    </div>
     <div class="container">
         <div class="header">FEED Swap</div>
         <div class="connect-section">
             <button id="connectWalletButton">Connect Wallet</button>
-            <div id="networkStatus" class="status">Click to connect...</div>
         </div>
         <div class="swap-box">
             <div class="balance-row">
@@ -259,7 +281,6 @@
         const SLIPPAGE_TOLERANCE = 0.005;
 
         const connectWalletButton = document.getElementById('connectWalletButton');
-        const networkStatus = document.getElementById('networkStatus');
         const buyBalance = document.getElementById('buyBalance');
         const sellBalance = document.getElementById('sellBalance');
         const payTokenSelect = document.getElementById('payToken');
@@ -271,6 +292,8 @@
         const buyButton = document.getElementById('buyButton');
         const approveButton = document.getElementById('approveButton');
         const sellButton = document.getElementById('sellButton');
+        const alertBox = document.getElementById('alertBox');
+        const alertMessage = document.getElementById('alertMessage');
 
         document.addEventListener('DOMContentLoaded', () => {
             connectWalletButton.addEventListener('click', connectWallet);
@@ -294,23 +317,39 @@
             };
         }
 
+        function showAlert(message, success = null) {
+            alertMessage.innerHTML = message;
+            alertBox.style.display = 'flex';
+            alertBox.className = 'alert-box';
+            if (success === true) {
+                alertBox.classList.add('success');
+            } else if (success === false) {
+                alertBox.classList.add('error');
+            }
+            setTimeout(hideAlert, 5000);
+        }
+
+        function hideAlert() {
+            alertBox.style.display = 'none';
+        }
+
         async function connectWallet() {
             try {
-                if (!window.ethereum) throw new Error("No wallet detected. Please install MetaMask.");
+                if (!window.ethereum) throw new Error("No wallet detected! Install MetaMask to proceed. 🦊");
                 connectWalletButton.disabled = true;
-                setStatus("Connecting... <span class='spinner'></span>");
+                showAlert("Connecting your wallet... <span class='spinner'></span>");
                 web3 = new Web3(window.ethereum);
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                if (!accounts.length) throw new Error("No accounts found. Please unlock your wallet.");
+                if (!accounts.length) throw new Error("No accounts found! Unlock your wallet first. 🔓");
                 account = accounts[0];
                 await switchToShibarium();
                 feedSwap = new web3.eth.Contract(feedSwapAbi, feedSwapAddress);
                 connectWalletButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
-                setStatus("Connected to Shibarium", true);
+                showAlert("Hey there! Connected to Shibarium! 🚀", true);
                 await fetchReserves();
                 await updateBalances();
             } catch (error) {
-                setStatus(`Failed: ${error.message}`, false);
+                showAlert(`Oops! ${error.message} 😓`, false);
                 resetUI();
             } finally {
                 connectWalletButton.disabled = false;
@@ -340,7 +379,6 @@
 
         function resetUI() {
             connectWalletButton.textContent = "Connect Wallet";
-            setStatus("Click to connect...");
             buyBalance.textContent = "Balance: 0";
             sellBalance.textContent = "Balance: 0";
             buyNote.innerHTML = "";
@@ -364,7 +402,7 @@
                         await switchToShibarium();
                         feedSwap = new web3.eth.Contract(feedSwapAbi, feedSwapAddress);
                         connectWalletButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
-                        setStatus("Connected to Shibarium", true);
+                        showAlert("Hey there! Connected to Shibarium! 🚀", true);
                         await fetchReserves();
                         await updateBalances();
                     } else {
@@ -375,6 +413,7 @@
                     account = null;
                     feedSwap = null;
                     resetUI();
+                    showAlert("Wallet disconnected! Connect again to continue. 🔗", false);
                 }
             });
             window.ethereum.on('chainChanged', async (chainId) => {
@@ -383,7 +422,7 @@
                     account = null;
                     feedSwap = null;
                     resetUI();
-                    setStatus("Wrong network. Reconnect to Shibarium.", false);
+                    showAlert("Wrong network! Switch back to Shibarium, please! 🌐", false);
                 } else if (account) {
                     await connectWallet();
                 }
@@ -407,7 +446,7 @@
                     };
                 });
             } catch (error) {
-                setStatus("Error fetching pool reserves.", false);
+                showAlert("Oops! Couldn't fetch pool reserves. Try again! 😅", false);
             }
         }
 
@@ -428,13 +467,13 @@
                 feedBalance = await feedContract.methods.balanceOf(account).call();
                 sellBalance.textContent = `Balance: ${parseFloat(web3.utils.fromWei(feedBalance, 'ether')).toFixed(4)}`;
             } catch (error) {
-                setStatus("Error fetching balances.", false);
+                showAlert("Oops! Couldn't fetch balances. Try again! 😅", false);
             }
         }
 
         function setPercentage(percentage) {
             if (!payBalance || !web3) {
-                setStatus("Please connect wallet first.", false);
+                showAlert("Hey! Connect your wallet first, please! 🔗", false);
                 return;
             }
             let amount;
@@ -453,7 +492,7 @@
 
         function setSellPercentage(percentage) {
             if (!feedBalance || !web3) {
-                setStatus("Please connect wallet first.", false);
+                showAlert("Hey! Connect your wallet first, please! 🔗", false);
                 return;
             }
             let amount;
@@ -665,7 +704,7 @@
                 let totalOutput = web3.utils.toBN('0');
                 let totalInput = web3.utils.toBN('0');
                 let totalPriceImpact = 0;
-                let html = 'AVAILABLE ROUTES:<br>';
+                let html = 'AVAILABLE ROUTES:\n';
                 for (const route of swapRoutes) {
                     const amountInEther = parseFloat(web3.utils.fromWei(route.amountIn, 'ether'));
                     const outputEther = parseFloat(web3.utils.fromWei(route.amountOut.toString(), 'ether'));
@@ -675,7 +714,7 @@
                     totalPriceImpact += priceImpact * (amountInEther / parseFloat(amountIn));
                     const path = route.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.from) || p.from).join(' -> ') + ' -> FEED';
                     const share = (amountInEther / parseFloat(amountIn)) * 100;
-                    html += `${path}: ${outputEther.toFixed(2)} FEED (${share.toFixed(1)}%) -> ${amountInEther.toFixed(2)} ${payTokenSymbol}<br>`;
+                    html += `${path}: ${outputEther.toFixed(2)} FEED (${share.toFixed(1)}%) -> ${amountInEther.toFixed(2)} ${payTokenSymbol}\n`;
                 }
 
                 const expectedAmounts = await feedSwap.methods.getExpectedAmountsOut(swapRoutes).call();
@@ -686,12 +725,9 @@
                 }
 
                 const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput.toString(), 'ether'));
-                const totalInputEther = parseFloat(web3.utils.fromWei(totalInput.toString(), 'ether'));
-                const pricePerFeed = totalInputEther / totalOutputEther;
                 const minReceived = totalOutputEther * (1 - SLIPPAGE_TOLERANCE);
-                html += `TOTAL: ${totalOutputEther.toFixed(2)} FEED<br>`;
-                html += `Price: ${pricePerFeed.toFixed(4)} ${payTokenSymbol} per FEED<br>`;
-                html += `Minimum received: ${minReceived.toFixed(2)} FEED<br>`;
+                html += `TOTAL: ${totalOutputEther.toFixed(2)} FEED\n`;
+                html += `Minimum received: ${minReceived.toFixed(2)} FEED\n`;
                 html += `Price impact: ${totalPriceImpact.toFixed(3)}%`;
                 buyNote.innerHTML = html;
                 window.buyRoutes = swapRoutes;
@@ -709,20 +745,20 @@
             const payTokenSymbol = window.buyPayToken;
             const totalAmount = window.buyTotalAmount;
             if (!web3 || !account || !totalAmount) {
-                setStatus("Please connect wallet and enter a valid amount.", false);
+                showAlert("Hey! Connect your wallet and enter a valid amount first! 🔗", false);
                 return;
             }
             try {
                 approveBuyButton.disabled = true;
-                setStatus(`Approving ${payTokenSymbol}... <span class="spinner"></span>`);
+                showAlert(`Approving ${payTokenSymbol}... <span class="spinner"></span>`);
                 const tokenContract = new web3.eth.Contract(erc20Abi, tokens[payTokenSymbol].address);
                 await tokenContract.methods.approve(feedSwapAddress, totalAmount).send({ from: account });
-                setStatus("Approval successful!", true);
+                showAlert(`Great job! ${payTokenSymbol} approved successfully! ✅`, true);
                 approveBuyButton.style.display = 'none';
                 buyButton.style.display = 'block';
                 buyButton.disabled = false;
             } catch (error) {
-                setStatus(error.message || "Approval failed.", false);
+                showAlert(`Uh-oh! Approval failed: ${error.message} 😓`, false);
             } finally {
                 approveBuyButton.disabled = false;
             }
@@ -730,7 +766,7 @@
 
         async function buyFEED() {
             if (!web3 || !account || !window.buyRoutes) {
-                setStatus("Please connect wallet and enter a valid amount.", false);
+                showAlert("Hey! Connect your wallet and enter a valid amount first! 🔗", false);
                 return;
             }
             const payTokenSymbol = window.buyPayToken;
@@ -738,7 +774,7 @@
             const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
             try {
                 buyButton.disabled = true;
-                setStatus("Processing buy... <span class='spinner'></span>");
+                showAlert("Processing your buy... <span class='spinner'></span>");
                 if (payTokenSymbol === 'BONE') {
                     await feedSwap.methods.buyWithBONE(window.buyRoutes, deadline).send({ from: account, value: totalAmount });
                 } else if (payTokenSymbol === 'WOOF') {
@@ -746,13 +782,13 @@
                 } else if (payTokenSymbol === 'LUISA') {
                     await feedSwap.methods.buyWithLUISA(window.buyRoutes, totalAmount, deadline).send({ from: account });
                 }
-                setStatus("Buy successful!", true);
+                showAlert("Woohoo! Buy successful! 🎉", true);
                 payAmountInput.value = '';
                 buyNote.innerHTML = '';
                 await fetchReserves();
                 await updateBalances();
             } catch (error) {
-                setStatus(error.message || "Buy failed.", false);
+                showAlert(`Oh no! Buy failed: ${error.message} 😓`, false);
             } finally {
                 buyButton.disabled = false;
             }
@@ -807,7 +843,7 @@
                 let totalOutput = web3.utils.toBN('0');
                 let totalInput = web3.utils.toBN('0');
                 let totalPriceImpact = 0;
-                let html = 'AVAILABLE ROUTES:<br>';
+                let html = 'AVAILABLE ROUTES:\n';
                 for (const route of swapRoutes) {
                     const amountInEther = parseFloat(web3.utils.fromWei(route.amountIn, 'ether'));
                     const outputEther = parseFloat(web3.utils.fromWei(route.amountOut.toString(), 'ether'));
@@ -817,7 +853,7 @@
                     totalPriceImpact += priceImpact * (amountInEther / parseFloat(amountIn));
                     const path = ['FEED'].concat(route.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.to) || p.to)).join(' -> ');
                     const share = amountInEther / parseFloat(amountIn) * 100;
-                    html += `${path}: ${outputEther.toFixed(2)} BONE (${share.toFixed(1)}%) -> ${amountInEther.toFixed(2)} FEED<br>`;
+                    html += `${path}: ${outputEther.toFixed(2)} BONE (${share.toFixed(1)}%) -> ${amountInEther.toFixed(2)} FEED\n`;
                 }
 
                 const expectedAmounts = await feedSwap.methods.getExpectedAmountsOut(swapRoutes).call();
@@ -828,12 +864,9 @@
                 }
 
                 const totalOutputEther = parseFloat(web3.utils.fromWei(totalOutput.toString(), 'ether'));
-                const totalInputEther = parseFloat(web3.utils.fromWei(totalInput.toString(), 'ether'));
-                const pricePerFeed = totalOutputEther / totalInputEther;
                 const minReceived = totalOutputEther * (1 - SLIPPAGE_TOLERANCE);
-                html += `TOTAL: ${totalOutputEther.toFixed(2)} BONE<br>`;
-                html += `Price: ${pricePerFeed.toFixed(4)} BONE per FEED<br>`;
-                html += `Minimum received: ${minReceived.toFixed(2)} BONE<br>`;
+                html += `TOTAL: ${totalOutputEther.toFixed(2)} BONE\n`;
+                html += `Minimum received: ${minReceived.toFixed(2)} BONE\n`;
                 html += `Price impact: ${totalPriceImpact.toFixed(3)}%`;
                 sellNote.innerHTML = html;
                 window.sellRoutes = swapRoutes;
@@ -849,20 +882,20 @@
 
         async function approveFEED() {
             if (!web3 || !account || !window.sellTotalAmount) {
-                setStatus("Please connect wallet and enter a valid amount.", false);
+                showAlert("Hey! Connect your wallet and enter a valid amount first! 🔗", false);
                 return;
             }
             try {
                 approveButton.disabled = true;
-                setStatus("Approving FEED... <span class='spinner'></span>");
+                showAlert("Approving FEED... <span class='spinner'></span>");
                 const feedContract = new web3.eth.Contract(erc20Abi, tokens.FEED.address);
                 await feedContract.methods.approve(feedSwapAddress, window.sellTotalAmount).send({ from: account });
-                setStatus("Approval successful!", true);
+                showAlert("Great job! FEED approved successfully! ✅", true);
                 approveButton.style.display = 'none';
                 sellButton.style.display = 'block';
                 sellButton.disabled = false;
             } catch (error) {
-                setStatus(error.message || "Approval failed.", false);
+                showAlert(`Uh-oh! Approval failed: ${error.message} 😓`, false);
             } finally {
                 approveButton.disabled = false;
             }
@@ -870,16 +903,16 @@
 
         async function sellFEED() {
             if (!web3 || !account || !window.sellRoutes) {
-                setStatus("Please connect wallet and enter a valid amount.", false);
+                showAlert("Hey! Connect your wallet and enter a valid amount first! 🔗", false);
                 return;
             }
             const totalAmount = window.sellTotalAmount;
             const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
             try {
                 sellButton.disabled = true;
-                setStatus("Processing sell... <span class='spinner'></span>");
+                showAlert("Processing your sell... <span class='spinner'></span>");
                 await feedSwap.methods.sellToBONE(window.sellRoutes, totalAmount, deadline).send({ from: account });
-                setStatus("Sell successful!", true);
+                showAlert("Woohoo! Sell successful! 🎉", true);
                 sellAmountInput.value = '';
                 sellNote.innerHTML = '';
                 approveButton.style.display = 'block';
@@ -887,19 +920,9 @@
                 await fetchReserves();
                 await updateBalances();
             } catch (error) {
-                setStatus(error.message || "Sell failed.", false);
+                showAlert(`Oh no! Sell failed: ${error.message} 😓`, false);
             } finally {
                 sellButton.disabled = false;
-            }
-        }
-
-        function setStatus(message, success = null) {
-            networkStatus.innerHTML = message;
-            networkStatus.className = 'status';
-            if (success === true) {
-                networkStatus.classList.add('success');
-            } else if (success === false) {
-                networkStatus.classList.add('error');
             }
         }
     </script>
