@@ -360,7 +360,7 @@
             window.ethereum.on('accountsChanged', async (newAccounts) => {
                 if (newAccounts.length) {
                     account = newAccounts[0];
-                    Wif (web3) {
+                    if (web3) {
                         await switchToShibarium();
                         feedSwap = new web3.eth.Contract(feedSwapAbi, feedSwapAddress);
                         connectWalletButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
@@ -540,8 +540,9 @@
             for (let i = 0; i < allocations.length; i++) {
                 if (remainingAmount.lte(web3.utils.toBN('0'))) break;
                 const allocation = allocations[i];
-                const amountToAllocate = remainingAmount.lt(allocation.amountIn) ? remainingAmount : allocation.amountIn;
+                let amountToAllocate = remainingAmount.lt(allocation.amountIn) ? remainingAmount : allocation.amountIn;
                 if (amountToAllocate.lt(MIN_ALLOCATION)) continue;
+
                 const output = getOutputForRoute(allocation.route, amountToAllocate);
                 if (output.gt(web3.utils.toBN('0'))) {
                     swapRoutes.push({
@@ -554,15 +555,17 @@
                 }
             }
 
+            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('0.1', 'ether'));
             while (remainingAmount.gt(MIN_ALLOCATION)) {
                 let bestRoute = null;
                 let bestOutputPerUnit = web3.utils.toBN('0');
                 let bestAmountIn = web3.utils.toBN('0');
 
                 for (const { route } of routeData) {
-                    const testAmount = remainingAmount.lt(MIN_ALLOCATION) ? remainingAmount : MIN_ALLOCATION;
+                    const testAmount = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
+                    if (testAmount.lt(MIN_ALLOCATION)) continue;
                     const output = getOutputForRoute(route, testAmount);
-                    const outputPerUnit = output.div(testAmount);
+                    const outputPerUnit = output.gt(web3.utils.toBN('0')) ? output.div(testAmount) : web3.utils.toBN('0');
                     if (outputPerUnit.gt(bestOutputPerUnit)) {
                         bestOutputPerUnit = outputPerUnit;
                         bestRoute = route;
