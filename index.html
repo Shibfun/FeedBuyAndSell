@@ -392,6 +392,24 @@
             checkSellRoutes();
         }
 
+        async function getMaxOutputForRoute(route, amountIn) {
+            let currentAmount = web3.utils.toBN(amountIn);
+            for (let i = 0; i < route.length; i++) {
+                const pairAddress = await factory.methods.getPair(route[i].from, route[i].to, false).call();
+                if (pairAddress === '0x0000000000000000000000000000000000000000') return { maxOutput: web3.utils.toBN('0'), amounts: [] };
+                const pairContract = new web3.eth.Contract(pairAbi, pairAddress);
+                const reserves = await pairContract.methods.getReserves().call();
+                const token0 = await pairContract.methods.token0().call();
+                const reserveOut = token0 === route[i].to ? reserves.reserve0 : reserves.reserve1;
+                const amounts = await router.methods.getAmountsOut(currentAmount, route.slice(0, i + 1)).call();
+                currentAmount = web3.utils.toBN(amounts[amounts.length - 1]);
+                if (currentAmount.gt(web3.utils.toBN(reserveOut))) {
+                    currentAmount = web3.utils.toBN(reserveOut);
+                }
+            }
+            return { maxOutput: currentAmount, amounts };
+        }
+
         async function checkBuyRoutes() {
             const buyNote = document.getElementById('buyNote');
             const buyButton = document.getElementById('buyButton');
@@ -432,45 +450,35 @@
             }
             try {
                 let routes = [];
-                let totalLiquidity = web3.utils.toBN('0');
+                let totalOutput = web3.utils.toBN('0');
                 for (const route of possibleRoutes) {
                     let valid = true;
-                    let liquidity = web3.utils.toBN('0');
                     for (let i = 0; i < route.length; i++) {
                         const pairAddress = await factory.methods.getPair(route[i].from, route[i].to, false).call();
                         if (pairAddress === '0x0000000000000000000000000000000000000000') {
                             valid = false;
                             break;
                         }
-                        const pairContract = new web3.eth.Contract(pairAbi, pairAddress);
-                        const reserves = await pairContract.methods.getReserves().call();
-                        const token0 = await pairContract.methods.token0().call();
-                        const reserveIn = token0 === route[i].from ? reserves.reserve0 : reserves.reserve1;
-                        const reserveOut = token0 === route[i].from ? reserves.reserve1 : reserves.reserve0;
-                        if (i === 0) {
-                            liquidity = web3.utils.toBN(reserveIn);
-                        } else {
-                            const amounts = await router.methods.getAmountsOut(liquidity, route.slice(0, i + 1)).call();
-                            liquidity = web3.utils.toBN(amounts[amounts.length - 1]);
-                        }
                     }
                     if (!valid) continue;
-                    routes.push({ path: route, liquidity });
-                    totalLiquidity = totalLiquidity.add(liquidity);
+                    const { maxOutput } = await getMaxOutputForRoute(route, amountInWei);
+                    if (maxOutput.eq(web3.utils.toBN('0'))) continue;
+                    routes.push({ path: route, maxOutput });
+                    totalOutput = totalOutput.add(maxOutput);
                 }
                 if (!routes.length) {
                     buyNote.innerHTML = 'No available routes found.';
                     buyButton.disabled = true;
                     return;
                 }
-                let totalOutput = 0;
+                let totalOutputFloat = 0;
                 const swapRoutes = [];
                 for (const route of routes) {
-                    const share = route.liquidity.mul(web3.utils.toBN(10000)).div(totalLiquidity).toNumber() / 10000;
+                    const share = route.maxOutput.mul(web3.utils.toBN(10000)).div(totalOutput).toNumber() / 10000;
                     const routeAmountIn = amountInWei.mul(web3.utils.toBN(Math.floor(share * 10000))).div(web3.utils.toBN(10000));
                     const amounts = await router.methods.getAmountsOut(routeAmountIn, route.path).call();
                     const output = parseFloat(web3.utils.fromWei(amounts[amounts.length - 1], 'ether'));
-                    totalOutput += output;
+                    totalOutputFloat += output;
                     swapRoutes.push({
                         amountIn: routeAmountIn.toString(),
                         amountOutMin: 0,
@@ -488,7 +496,7 @@
                     const path = r.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.from) || p.from).join(' -> ') + ' -> FEED';
                     html += `${path}: ${r.output.toFixed(2)} (${r.share.toFixed(1)}%)<br>`;
                 });
-                html += `TOTAL: ${totalOutput.toFixed(2)} FEED`;
+                html += `TOTAL: ${totalOutputFloat.toFixed(2)} FEED`;
                 buyNote.innerHTML = html;
                 window.buyRoutes = swapRoutes;
                 window.buyTotalAmount = amountInWei.toString();
@@ -564,31 +572,21 @@
             ];
             try {
                 let routes = [];
-                let totalLiquidity = web3.utils.toBN('0');
+                let totalOutput = web3.utils.toBN('0');
                 for (const route of possibleRoutes) {
                     let valid = true;
-                    let liquidity = web3.utils.toBN('0');
                     for (let i = 0; i < route.length; i++) {
                         const pairAddress = await factory.methods.getPair(route[i].from, route[i].to, false).call();
                         if (pairAddress === '0x0000000000000000000000000000000000000000') {
                             valid = false;
                             break;
                         }
-                        const pairContract = new web3.eth.Contract(pairAbi, pairAddress);
-                        const reserves = await pairContract.methods.getReserves().call();
-                        const token0 = await pairContract.methods.token0().call();
-                        const reserveIn = token0 === route[i].from ? reserves.reserve0 : reserves.reserve1;
-                        const reserveOut = token0 === route[i].from ? reserves.reserve1 : reserves.reserve0;
-                        if (i === 0) {
-                            liquidity = web3.utils.toBN(reserveIn);
-                        } else {
-                            const amounts = await router.methods.getAmountsOut(liquidity, route.slice(0, i + 1)).call();
-                            liquidity = web3.utils.toBN(amounts[amounts.length - 1]);
-                        }
                     }
                     if (!valid) continue;
-                    routes.push({ path: route, liquidity });
-                    totalLiquidity = totalLiquidity.add(liquidity);
+                    const { maxOutput } = await getMaxOutputForRoute(route, amountInWei);
+                    if (maxOutput.eq(web3.utils.toBN('0'))) continue;
+                    routes.push({ path: route, maxOutput });
+                    totalOutput = totalOutput.add(maxOutput);
                 }
                 if (!routes.length) {
                     sellNote.innerHTML = 'No available routes found.';
@@ -597,14 +595,14 @@
                     approveButton.disabled = true;
                     return;
                 }
-                let totalOutput = 0;
+                let totalOutputFloat = 0;
                 const swapRoutes = [];
                 for (const route of routes) {
-                    const share = route.liquidity.mul(web3.utils.toBN(10000)).div(totalLiquidity).toNumber() / 10000;
+                    const share = route.maxOutput.mul(web3.utils.toBN(10000)).div(totalOutput).toNumber() / 10000;
                     const routeAmountIn = amountInWei.mul(web3.utils.toBN(Math.floor(share * 10000))).div(web3.utils.toBN(10000));
                     const amounts = await router.methods.getAmountsOut(routeAmountIn, route.path).call();
                     const output = parseFloat(web3.utils.fromWei(amounts[amounts.length - 1], 'ether'));
-                    totalOutput += output;
+                    totalOutputFloat += output;
                     swapRoutes.push({
                         amountIn: routeAmountIn.toString(),
                         amountOutMin: 0,
@@ -622,7 +620,7 @@
                     const path = ['FEED'].concat(r.path.map(p => Object.keys(tokens).find(k => tokens[k].address === p.to) || p.to)).join(' -> ');
                     html += `${path}: ${r.output.toFixed(2)} (${r.share.toFixed(1)}%)<br>`;
                 });
-                html += `TOTAL: ${totalOutput.toFixed(2)} BONE`;
+                html += `TOTAL: ${totalOutputFloat.toFixed(2)} BONE`;
                 sellNote.innerHTML = html;
                 window.sellRoutes = swapRoutes;
                 window.sellTotalAmount = amountInWei.toString();
