@@ -9,8 +9,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Poppins', sans-serif;
-            background: #1A1A2E;
-            color: #E0E0E0;
+            background: #000;
+            color: #fff;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -18,10 +18,10 @@
         }
         .header {
             padding: 20px;
-            background: #16213E;
+            background: #1C2526;
             width: 100%;
             text-align: center;
-            border-bottom: 2px solid #FF6200;
+            border-bottom: 3px solid #FF6200;
         }
         .header-top {
             display: flex;
@@ -41,8 +41,8 @@
             gap: 15px;
         }
         .action-btn {
-            background: #0F3460;
-            color: #E0E0E0;
+            background: #333;
+            color: #fff;
             border: none;
             padding: 8px 12px;
             border-radius: 10px;
@@ -51,7 +51,6 @@
         }
         .action-btn:hover {
             background: #FF6200;
-            color: #fff;
         }
         .header h1 {
             font-size: 2.5em;
@@ -70,10 +69,10 @@
             flex-grow: 1;
         }
         .section {
-            background: #0F3460;
+            background: #1C2526;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 20px rgba(255, 98, 0, 0.1);
             border: 1px solid #FF6200;
             text-align: center;
         }
@@ -94,8 +93,8 @@
             padding: 12px;
             border: none;
             border-radius: 10px;
-            background: #1A1A2E;
-            color: #E0E0E0;
+            background: #333;
+            color: #fff;
             font-size: 1em;
             text-align: center;
             transition: all 0.3s;
@@ -103,7 +102,7 @@
         select:focus, input:focus {
             outline: none;
             box-shadow: 0 0 8px #FF6200;
-            background: #16213E;
+            background: #444;
         }
         .button-group {
             display: flex;
@@ -121,12 +120,12 @@
             font-size: 1em;
             font-weight: 600;
             transition: all 0.3s;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 10px rgba(255, 98, 0, 0.3);
         }
         button:hover {
             background: #E05500;
             transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 6px 15px rgba(255, 98, 0, 0.5);
         }
         button:disabled {
             background: #666;
@@ -139,12 +138,12 @@
             pointer-events: none;
         }
         .info-panel {
-            background: #16213E;
+            background: #333;
             padding: 15px;
             border-radius: 10px;
             margin-top: 20px;
             font-size: 0.95em;
-            color: #E0E0E0;
+            color: #fff;
             line-height: 1.6;
         }
         .modal {
@@ -159,13 +158,13 @@
             align-items: center;
         }
         .modal-content {
-            background: #0F3460;
+            background: #1C2526;
             padding: 25px;
             border-radius: 15px;
             text-align: center;
-            color: #E0E0E0;
+            color: #fff;
             max-width: 400px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 20px rgba(255, 98, 0, 0.2);
             border: 1px solid #FF6200;
         }
         .modal-content p {
@@ -176,13 +175,13 @@
             padding: 10px 20px;
         }
         footer {
-            background: #16213E;
+            background: #1C2526;
             text-align: center;
             padding: 15px;
             width: 100%;
-            color: #E0E0E0;
+            color: #fff;
             font-size: 0.9em;
-            border-top: 2px solid #FF6200;
+            border-top: 3px solid #FF6200;
         }
         @media (max-width: 768px) {
             .header h1 { font-size: 2em; }
@@ -217,11 +216,6 @@
         <div class="section">
             <div class="section-title">Buy Tokens</div>
             <div class="input-group">
-                <select id="baseToken">
-                    <option value="0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834">WOOF</option>
-                    <option value="0xeCe898EdCc0AF91430603175F945D8de75291c70">DAMN</option>
-                    <option value="0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0">FEED</option>
-                </select>
                 <input type="text" id="targetToken" placeholder="Target Token Address">
                 <select id="payToken">
                     <option value="BONE">BONE</option>
@@ -265,9 +259,10 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
     <script>
-        let web3, accounts, routerContract, factoryContract;
+        let web3, accounts, routerContract, factoryContract, woofswapBuyContract;
         const ROUTER_ADDRESS = "0x96b16aBD53Bfd765F4CD118590C1d0be8B57DE24";
         const FACTORY_ADDRESS = "0xB9fbdFA27B7ba8BB2d4bB4aB399e4c55F0F7F83a";
+        const WOOFBUY_ADDRESS = "0xA3A91a8CcA355B4Fd9A5d21E145C1595C5b3C054";
         const WBONE_ADDRESS = "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd";
         const TOKENS = {
             BONE: WBONE_ADDRESS,
@@ -277,6 +272,7 @@
         };
         const ROUTER_ABI = [{"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapExactTokensForTokens","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapExactETHForTokens","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapExactTokensForETH","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"}];
         const FACTORY_ABI = [{"inputs":[{"internalType":"address","name":"tokenA","type":"address"},{"internalType":"address","name":"tokenB","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"name":"getPair","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}];
+        const WOOFBUY_ABI = [{"inputs":[{"internalType":"address","name":"payToken","type":"address"},{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct WoofswapBuy.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithMultipleRoutes","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"payable","type":"function"},{"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct WoofswapBuy.SwapRoute[]","name":"routes","type":"tuple[]"}],"name":"getExpectedAmountsOut","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"view","type":"function"}];
         const IERC20_ABI = [{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}];
         const shibariumMainnet = { chainId: 109, chainName: 'Shibarium', nativeCurrency: { name: 'BONE', symbol: 'BONE', decimals: 18 }, rpcUrls: ['https://www.shibrpc.com'], blockExplorerUrls: ['https://shibariumscan.io'] };
 
@@ -318,6 +314,7 @@
                 }
                 routerContract = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
                 factoryContract = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+                woofswapBuyContract = new web3.eth.Contract(WOOFBUY_ABI, WOOFBUY_ADDRESS);
                 showModal('Connected to Shibarium!');
                 updateWalletAddress();
                 updateBoneBalance();
@@ -334,7 +331,6 @@
             try {
                 if (!web3 || !accounts) throw new Error('Connect wallet first!');
                 checkButton.classList.add('loading');
-                const baseToken = document.getElementById('baseToken').value;
                 const targetToken = document.getElementById('targetToken').value;
                 let payToken = document.getElementById('payToken').value;
                 const payAmount = document.getElementById('payAmount').value;
@@ -368,7 +364,16 @@
                 });
                 html += `Total: ${totalOutput.toFixed(2)}`;
                 document.getElementById('buyRoutesInfo').innerHTML = html;
-                window.buyRoutes = allocation.map(r => ({ ...r, amount: web3.utils.toWei((payAmount * r.share / 100).toString(), 'ether') }));
+                const swapRoutes = allocation.map(r => ({
+                    amountIn: web3.utils.toWei((payAmount * r.share / 100).toString(), 'ether'),
+                    amountOutMin: 0,
+                    path: r.path
+                }));
+                const expectedAmounts = await woofswapBuyContract.methods.getExpectedAmountsOut(swapRoutes).call();
+                for (let i = 0; i < swapRoutes.length; i++) {
+                    swapRoutes[i].amountOutMin = expectedAmounts[i];
+                }
+                window.buyRoutes = swapRoutes;
                 window.buyPayToken = document.getElementById('payToken').value;
                 buyButton.disabled = false;
             } catch (error) {
@@ -386,19 +391,22 @@
                 if (!web3 || !accounts || !window.buyRoutes) throw new Error('Check routes first!');
                 buyButton.classList.add('loading');
                 const payToken = window.buyPayToken;
+                const totalAmount = window.buyRoutes.reduce((sum, r) => sum + BigInt(r.amountIn), 0n);
                 const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-                if (payToken !== 'BONE') {
-                    const tokenContract = new web3.eth.Contract(IERC20_ABI, payToken);
-                    const totalAmount = window.buyRoutes.reduce((sum, r) => sum + BigInt(r.amount), 0n);
-                    await tokenContract.methods.approve(ROUTER_ADDRESS, totalAmount.toString()).send({ from: accounts[0] });
-                }
-                for (const route of window.buyRoutes) {
-                    if (route.amount === '0') continue;
-                    if (payToken === 'BONE') {
-                        await routerContract.methods.swapExactETHForTokens(0, route.path, accounts[0], deadline).send({ from: accounts[0], value: route.amount });
-                    } else {
-                        await routerContract.methods.swapExactTokensForTokens(route.amount, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
-                    }
+                if (payToken === 'BONE') {
+                    await woofswapBuyContract.methods.buyWithMultipleRoutes(
+                        WBONE_ADDRESS,
+                        totalAmount.toString(),
+                        window.buyRoutes,
+                        deadline
+                    ).send({ from: accounts[0], value: totalAmount.toString() });
+                } else {
+                    await woofswapBuyContract.methods.buyWithMultipleRoutes(
+                        payToken,
+                        totalAmount.toString(),
+                        window.buyRoutes,
+                        deadline
+                    ).send({ from: accounts[0] });
                 }
                 showModal('Purchase successful!');
                 updateBoneBalance();
@@ -448,8 +456,13 @@
                 });
                 html += `Total: ${totalOutput.toFixed(2)}`;
                 document.getElementById('sellRoutesInfo').innerHTML = html;
-                window.sellRoutes = allocation.map(r => ({ ...r, amount: web3.utils.toWei((sellAmount * r.share / 100).toString(), 'ether') }));
+                window.sellRoutes = allocation.map(r => ({
+                    amountIn: web3.utils.toWei((sellAmount * r.share / 100).toString(), 'ether'),
+                    amountOutMin: 0,
+                    path: r.path
+                }));
                 window.sellReceiveToken = document.getElementById('receiveToken').value;
+                window.sellToken = sellToken;
                 sellButton.disabled = false;
             } catch (error) {
                 showModal(error.message);
@@ -465,18 +478,18 @@
             try {
                 if (!web3 || !accounts || !window.sellRoutes) throw new Error('Check routes first!');
                 sellButton.classList.add('loading');
-                const sellToken = document.getElementById('sellToken').value;
+                const sellToken = window.sellToken;
                 const receiveToken = window.sellReceiveToken;
+                const totalAmount = window.sellRoutes.reduce((sum, r) => sum + BigInt(r.amountIn), 0n);
                 const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
                 const tokenContract = new web3.eth.Contract(IERC20_ABI, sellToken);
-                const totalAmount = window.sellRoutes.reduce((sum, r) => sum + BigInt(r.amount), 0n);
                 await tokenContract.methods.approve(ROUTER_ADDRESS, totalAmount.toString()).send({ from: accounts[0] });
                 for (const route of window.sellRoutes) {
-                    if (route.amount === '0') continue;
+                    if (route.amountIn === '0') continue;
                     if (receiveToken === 'BONE') {
-                        await routerContract.methods.swapExactTokensForETH(route.amount, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
+                        await routerContract.methods.swapExactTokensForETH(route.amountIn, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
                     } else {
-                        await routerContract.methods.swapExactTokensForTokens(route.amount, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
+                        await routerContract.methods.swapExactTokensForTokens(route.amountIn, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
                     }
                 }
                 showModal('Sale successful!');
@@ -498,7 +511,7 @@
         window.ethereum?.on('chainChanged', chainId => {
             if (parseInt(chainId, 16) !== 109) {
                 showModal('Wrong network. Reconnect to Shibarium.');
-                web3 = null; accounts = null; routerContract = null; factoryContract = null;
+                web3 = null; accounts = null; routerContract = null; factoryContract = null; woofswapBuyContract = null;
                 updateWalletAddress();
             } else connectWallet();
         });
@@ -507,7 +520,7 @@
             if (newAccounts.length) connectWallet();
             else {
                 showModal('Wallet disconnected.');
-                web3 = null; accounts = null; routerContract = null; factoryContract = null;
+                web3 = null; accounts = null; routerContract = null; factoryContract = null; woofswapBuyContract = null;
                 updateWalletAddress();
             }
         });
