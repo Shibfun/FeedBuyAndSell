@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shiba Swap</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #F5E8D3 url('https://www.transparenttextures.com/patterns/shiba.png') repeat;
+            color: #5C4033;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .header {
+            padding: 20px;
+            text-align: center;
+            background: #D4A373;
+            width: 100%;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        .header h1 {
+            font-size: 2em;
+            color: #8B5E3C;
+            text-transform: uppercase;
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+        }
+        .header-top .balance { font-size: 1.2em; color: #8B5E3C; font-weight: bold; }
+        .header-top .actions { display: flex; gap: 10px; }
+        .action-btn {
+            background: #EDE4D3;
+            color: #5C4033;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .action-btn:hover { background: #8B5E3C; color: #fff; }
+        .container {
+            max-width: 450px;
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .section {
+            background: #FFF8E7;
+            padding: 20px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 3px solid #D4A373;
+            text-align: center;
+        }
+        .section-title {
+            font-size: 1.5em;
+            color: #8B5E3C;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 15px 0;
+        }
+        select, input {
+            padding: 12px;
+            border: none;
+            border-radius: 20px;
+            background: #EDE4D3;
+            color: #5C4033;
+            font-size: 1em;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        select:focus, input:focus {
+            outline: none;
+            box-shadow: 0 0 8px #D4A373;
+            background: #FFF8E7;
+        }
+        button {
+            background: #8B5E3C;
+            color: #FFF8E7;
+            border: none;
+            padding: 12px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        button:hover {
+            background: #A6744F;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        button:disabled {
+            background: #A9A9A9;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        button.loading { opacity: 0.7; pointer-events: none; }
+        .info-panel {
+            background: #EDE4D3;
+            padding: 15px;
+            border-radius: 20px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #5C4033;
+            line-height: 1.5;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #FFF8E7;
+            padding: 20px;
+            border-radius: 25px;
+            text-align: center;
+            color: #5C4033;
+            max-width: 350px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border: 3px solid #D4A373;
+        }
+        .modal-content p { margin-bottom: 15px; font-size: 1.1em; }
+        .modal-content button { padding: 10px 20px; }
+        footer {
+            background: #D4A373;
+            text-align: center;
+            padding: 15px;
+            width: 100%;
+            color: #5C4033;
+            font-size: 0.9em;
+        }
+        @media (max-width: 480px) {
+            .header h1 { font-size: 1.5em; }
+            .container { padding: 10px; }
+            .section { padding: 15px; }
+            button, select, input { font-size: 0.9em; padding: 10px; }
+            .header-top .balance { font-size: 1em; }
+            .action-btn { padding: 6px 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-top">
+            <span id="boneBalance">0 BONE</span>
+            <div class="actions">
+                <button class="action-btn" onclick="window.open('https://x.com/woofswap', '_blank')"><i class="fab fa-twitter"></i></button>
+                <button class="action-btn" onclick="window.open('https://t.me/ShibariumSRC20', '_blank')"><i class="fab fa-telegram-plane"></i></button>
+            </div>
+        </div>
+        <h1>Shiba Swap</h1>
+    </div>
+    <div class="container">
+        <div class="section">
+            <div class="section-title">Connect Wallet</div>
+            <button id="connectButton">Connect MetaMask</button>
+            <div class="info-panel">Wallet: <span id="walletAddress">Not connected</span></div>
+        </div>
+        <div class="section">
+            <div class="section-title">Buy Tokens</div>
+            <div class="input-group">
+                <select id="baseToken">
+                    <option value="0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834">WOOF</option>
+                    <option value="0xeCe898EdCc0AF91430603175F945D8de75291c70">DAMN</option>
+                    <option value="0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0">FEED</option>
+                </select>
+                <input type="text" id="targetToken" placeholder="Target Token Address">
+                <select id="payToken">
+                    <option value="0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd">BONE</option>
+                    <option value="0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834">WOOF</option>
+                    <option value="0xeCe898EdCc0AF91430603175F945D8de75291c70">DAMN</option>
+                    <option value="0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0">FEED</option>
+                </select>
+                <input type="text" id="payAmount" placeholder="Amount to Pay">
+            </div>
+            <button id="checkBuyRoutesButton">Check Routes</button>
+            <button id="buyButton" disabled>Buy</button>
+            <div class="info-panel" id="buyRoutesInfo"></div>
+        </div>
+        <div class="section">
+            <div class="section-title">Sell Tokens</div>
+            <div class="input-group">
+                <input type="text" id="sellToken" placeholder="Token to Sell">
+                <input type="text" id="sellAmount" placeholder="Amount to Sell">
+                <select id="receiveToken">
+                    <option value="0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd">BONE</option>
+                    <option value="0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834">WOOF</option>
+                    <option value="0xeCe898EdCc0AF91430603175F945D8de75291c70">DAMN</option>
+                    <option value="0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0">FEED</option>
+                </select>
+            </div>
+            <button id="checkSellRoutesButton">Check Routes</button>
+            <button id="sellButton" disabled>Sell</button>
+            <div class="info-panel" id="sellRoutesInfo"></div>
+        </div>
+    </div>
+    <footer>Powered by Shibarium © 2025</footer>
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <p id="modalMessage"></p>
+            <button onclick="closeModal()">OK</button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
+    <script>
+        let web3, accounts, routerContract, factoryContract;
+        const ROUTER_ADDRESS = "0x96b16aBD53Bfd765F4CD118590C1d0be8B57DE24";
+        const FACTORY_ADDRESS = "0xB9fbdFA27B7ba8BB2d4bB4aB399e4c55F0F7F83a";
+        const WBONE_ADDRESS = "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd";
+        const TOKENS = {
+            BONE: WBONE_ADDRESS,
+            WOOF: "0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834",
+            DAMN: "0xeCe898EdCc0AF91430603175F945D8de75291c70",
+            FEED: "0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0"
+        };
+        const ROUTER_ABI = [{"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapExactTokensForTokens","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapExactETHForTokens","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"swapExactTokensForETH","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"}];
+        const FACTORY_ABI = [{"inputs":[{"internalType":"address","name":"tokenA","type":"address"},{"internalType":"address","name":"tokenB","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"name":"getPair","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}];
+        const IERC20_ABI = [{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}];
+        const shibariumMainnet = { chainId: 109, chainName: 'Shibarium', nativeCurrency: { name: 'BONE', symbol: 'BONE', decimals: 18 }, rpcUrls: ['https://www.shibrpc.com'], blockExplorerUrls: ['https://shibariumscan.io'] };
+
+        function showModal(message) {
+            document.getElementById('modalMessage').innerHTML = message;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        async function updateBoneBalance() {
+            if (!web3 || !accounts) return;
+            const balance = await web3.eth.getBalance(accounts[0]);
+            document.getElementById('boneBalance').innerText = `${parseFloat(web3.utils.fromWei(balance, 'ether')).toFixed(2)} BONE`;
+        }
+
+        async function updateWalletAddress() {
+            document.getElementById('walletAddress').innerText = accounts ? `${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}` : 'Not connected';
+        }
+
+        async function connectWallet() {
+            const connectButton = document.getElementById('connectButton');
+            try {
+                if (!window.ethereum) throw new Error('No wallet detected. Install MetaMask.');
+                connectButton.classList.add('loading');
+                web3 = new Web3(window.ethereum);
+                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (!accounts.length) throw new Error('Please unlock your wallet.');
+                const chainId = await web3.eth.getChainId();
+                if (chainId !== 109) {
+                    try {
+                        await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: web3.utils.numberToHex(109) }] });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [shibariumMainnet] });
+                        else throw new Error('Failed to switch network.');
+                    }
+                }
+                routerContract = new web3.eth.Contract(ROUTER_ABI, ROUTER_ADDRESS);
+                factoryContract = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+                showModal('Connected to Shibarium!');
+                updateWalletAddress();
+                updateBoneBalance();
+            } catch (error) {
+                showModal(error.message);
+            } finally {
+                connectButton.classList.remove('loading');
+            }
+        }
+
+        async function checkBuyRoutes() {
+            const checkButton = document.getElementById('checkBuyRoutesButton');
+            const buyButton = document.getElementById('buyButton');
+            try {
+                if (!web3 || !accounts) throw new Error('Connect wallet first!');
+                checkButton.classList.add('loading');
+                const baseToken = document.getElementById('baseToken').value;
+                const targetToken = document.getElementById('targetToken').value;
+                const payToken = document.getElementById('payToken').value;
+                const payAmount = document.getElementById('payAmount').value;
+                if (!web3.utils.isAddress(targetToken) || !payAmount || payAmount <= 0) throw new Error('Invalid input!');
+                const weiAmount = web3.utils.toWei(payAmount, 'ether');
+                const baseTokens = Object.values(TOKENS).filter(t => t !== payToken);
+                let routes = [], totalOutput = 0;
+                for (const midToken of baseTokens) {
+                    let route = [];
+                    if (payToken !== midToken) {
+                        const pair1 = await factoryContract.methods.getPair(payToken, midToken, false).call();
+                        if (pair1 === '0x0000000000000000000000000000000000000000') continue;
+                        route.push({ from: payToken, to: midToken, stable: false });
+                    }
+                    const pair2 = await factoryContract.methods.getPair(midToken, targetToken, false).call();
+                    if (pair2 === '0x0000000000000000000000000000000000000000') continue;
+                    route.push({ from: midToken, to: targetToken, stable: false });
+                    const amounts = await routerContract.methods.getAmountsOut(weiAmount, route).call();
+                    const output = parseFloat(web3.utils.fromWei(amounts[amounts.length - 1], 'ether'));
+                    routes.push({ path: route, output });
+                    totalOutput += output;
+                }
+                if (!routes.length) throw new Error('No available routes!');
+                routes.sort((a, b) => b.output - a.output);
+                const allocation = routes.map(r => ({ ...r, share: (r.output / totalOutput) * 100 }));
+                let html = 'Available Routes:<br>';
+                allocation.forEach(r => {
+                    const path = r.path.map(p => Object.keys(TOKENS).find(k => TOKENS[k] === p.from) || p.from).join(' -> ') + ' -> ' + targetToken.slice(0, 6);
+                    html += `${path}: ${r.output.toFixed(2)} (${r.share.toFixed(1)}%)<br>`;
+                });
+                html += `Total: ${totalOutput.toFixed(2)}`;
+                document.getElementById('buyRoutesInfo').innerHTML = html;
+                window.buyRoutes = allocation.map(r => ({ ...r, amount: web3.utils.toWei((payAmount * r.share / 100).toString(), 'ether') }));
+                buyButton.disabled = false;
+            } catch (error) {
+                showModal(error.message);
+                document.getElementById('buyRoutesInfo').innerHTML = '';
+                buyButton.disabled = true;
+            } finally {
+                checkButton.classList.remove('loading');
+            }
+        }
+
+        async function buyTokens() {
+            const buyButton = document.getElementById('buyButton');
+            try {
+                if (!web3 || !accounts || !window.buyRoutes) throw new Error('Check routes first!');
+                buyButton.classList.add('loading');
+                const payToken = document.getElementById('payToken').value;
+                const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+                if (payToken !== WBONE_ADDRESS) {
+                    const tokenContract = new web3.eth.Contract(IERC20_ABI, payToken);
+                    const totalAmount = window.buyRoutes.reduce((sum, r) => sum + BigInt(r.amount), 0n);
+                    await tokenContract.methods.approve(ROUTER_ADDRESS, totalAmount.toString()).send({ from: accounts[0] });
+                }
+                for (const route of window.buyRoutes) {
+                    if (route.amount === '0') continue;
+                    if (payToken === WBONE_ADDRESS) {
+                        await routerContract.methods.swapExactETHForTokens(0, route.path, accounts[0], deadline).send({ from: accounts[0], value: route.amount });
+                    } else {
+                        await routerContract.methods.swapExactTokensForTokens(route.amount, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
+                    }
+                }
+                showModal('Purchase successful!');
+                updateBoneBalance();
+            } catch (error) {
+                showModal(`Purchase failed: ${error.message}`);
+            } finally {
+                buyButton.classList.remove('loading');
+            }
+        }
+
+        async function checkSellRoutes() {
+            const checkButton = document.getElementById('checkSellRoutesButton');
+            const sellButton = document.getElementById('sellButton');
+            try {
+                if (!web3 || !accounts) throw new Error('Connect wallet first!');
+                checkButton.classList.add('loading');
+                const sellToken = document.getElementById('sellToken').value;
+                const sellAmount = document.getElementById('sellAmount').value;
+                const receiveToken = document.getElementById('receiveToken').value;
+                if (!web3.utils.isAddress(sellToken) || !sellAmount || sellAmount <= 0) throw new Error('Invalid input!');
+                const weiAmount = web3.utils.toWei(sellAmount, 'ether');
+                const baseTokens = Object.values(TOKENS).filter(t => t !== receiveToken);
+                let routes = [], totalOutput = 0;
+                for (const midToken of baseTokens) {
+                    let route = [];
+                    const pair1 = await factoryContract.methods.getPair(sellToken, midToken, false).call();
+                    if (pair1 === '0x0000000000000000000000000000000000000000') continue;
+                    route.push({ from: sellToken, to: midToken, stable: false });
+                    if (midToken !== receiveToken) {
+                        const pair2 = await factoryContract.methods.getPair(midToken, receiveToken, false).call();
+                        if (pair2 === '0x0000000000000000000000000000000000000000') continue;
+                        route.push({ from: midToken, to: receiveToken, stable: false });
+                    }
+                    const amounts = await routerContract.methods.getAmountsOut(weiAmount, route).call();
+                    const output = parseFloat(web3.utils.fromWei(amounts[amounts.length - 1], 'ether'));
+                    routes.push({ path: route, output });
+                    totalOutput += output;
+                }
+                if (!routes.length) throw new Error('No available routes!');
+                routes.sort((a, b) => b.output - a.output);
+                const allocation = routes.map(r => ({ ...r, share: (r.output / totalOutput) * 100 }));
+                let html = 'Available Routes:<br>';
+                allocation.forEach(r => {
+                    const path = [sellToken.slice(0, 6)].concat(r.path.map(p => Object.keys(TOKENS).find(k => TOKENS[k] === p.to) || p.to)).join(' -> ');
+                    html += `${path}: ${r.output.toFixed(2)} (${r.share.toFixed(1)}%)<br>`;
+                });
+                html += `Total: ${totalOutput.toFixed(2)}`;
+                document.getElementById('sellRoutesInfo').innerHTML = html;
+                window.sellRoutes = allocation.map(r => ({ ...r, amount: web3.utils.toWei((sellAmount * r.share / 100).toString(), 'ether') }));
+                sellButton.disabled = false;
+            } catch (error) {
+                showModal(error.message);
+                document.getElementById('sellRoutesInfo').innerHTML = '';
+                sellButton.disabled = true;
+            } finally {
+                checkButton.classList.remove('loading');
+            }
+        }
+
+        async function sellTokens() {
+            const sellButton = document.getElementById('sellButton');
+            try {
+                if (!web3 || !accounts || !window.sellRoutes) throw new Error('Check routes first!');
+                sellButton.classList.add('loading');
+                const sellToken = document.getElementById('sellToken').value;
+                const receiveToken = document.getElementById('receiveToken').value;
+                const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+                const tokenContract = new web3.eth.Contract(IERC20_ABI, sellToken);
+                const totalAmount = window.sellRoutes.reduce((sum, r) => sum + BigInt(r.amount), 0n);
+                await tokenContract.methods.approve(ROUTER_ADDRESS, totalAmount.toString()).send({ from: accounts[0] });
+                for (const route of window.sellRoutes) {
+                    if (route.amount === '0') continue;
+                    if (receiveToken === WBONE_ADDRESS) {
+                        await routerContract.methods.swapExactTokensForETH(route.amount, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
+                    } else {
+                        await routerContract.methods.swapExactTokensForTokens(route.amount, 0, route.path, accounts[0], deadline).send({ from: accounts[0] });
+                    }
+                }
+                showModal('Sale successful!');
+                updateBoneBalance();
+            } catch (error) {
+                showModal(`Sale failed: ${error.message}`);
+            } finally {
+                sellButton.classList.remove('loading');
+            }
+        }
+
+        setInterval(updateBoneBalance, 5000);
+        document.getElementById('connectButton').addEventListener('click', connectWallet);
+        document.getElementById('checkBuyRoutesButton').addEventListener('click', checkBuyRoutes);
+        document.getElementById('buyButton').addEventListener('click', buyTokens);
+        document.getElementById('checkSellRoutesButton').addEventListener('click', checkSellRoutes);
+        document.getElementById('sellButton').addEventListener('click', sellTokens);
+
+        window.ethereum?.on('chainChanged', chainId => {
+            if (parseInt(chainId, 16) !== 109) {
+                showModal('Wrong network. Reconnect to Shibarium.');
+                web3 = null; accounts = null; routerContract = null; factoryContract = null;
+                updateWalletAddress();
+            } else connectWallet();
+        });
+
+        window.ethereum?.on('accountsChanged', newAccounts => {
+            if (newAccounts.length) connectWallet();
+            else {
+                showModal('Wallet disconnected.');
+                web3 = null; accounts = null; routerContract = null; factoryContract = null;
+                updateWalletAddress();
+            }
+        });
+    </script>
+</body>
+</html>
