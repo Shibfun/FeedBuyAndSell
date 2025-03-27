@@ -321,11 +321,8 @@
             alertMessage.innerHTML = message;
             alertBox.style.display = 'flex';
             alertBox.className = 'alert-box';
-            if (success === true) {
-                alertBox.classList.add('success');
-            } else if (success === false) {
-                alertBox.classList.add('error');
-            }
+            if (success === true) alertBox.classList.add('success');
+            else if (success === false) alertBox.classList.add('error');
             setTimeout(hideAlert, 5000);
         }
 
@@ -360,19 +357,10 @@
             const chainId = await web3.eth.getChainId();
             if (Number(chainId) !== 109) {
                 try {
-                    await window.ethereum.request({
-                        method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: "0x6d" }]
-                    });
+                    await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: "0x6d" }] });
                 } catch (switchError) {
-                    if (switchError.code === 4902) {
-                        await window.ethereum.request({
-                            method: 'wallet_addEthereumChain',
-                            params: [shibarium]
-                        });
-                    } else {
-                        throw switchError;
-                    }
+                    if (switchError.code === 4902) await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [shibarium] });
+                    else throw switchError;
                 }
             }
         }
@@ -436,14 +424,8 @@
                 poolReserves.forEach(reserve => {
                     const key = `${reserve.token0}-${reserve.token1}`;
                     const reverseKey = `${reserve.token1}-${reserve.token0}`;
-                    reserves[key] = {
-                        reserve0: web3.utils.toBN(reserve.reserve0),
-                        reserve1: web3.utils.toBN(reserve.reserve1)
-                    };
-                    reserves[reverseKey] = {
-                        reserve0: web3.utils.toBN(reserve.reserve1),
-                        reserve1: web3.utils.toBN(reserve.reserve0)
-                    };
+                    reserves[key] = { reserve0: web3.utils.toBN(reserve.reserve0), reserve1: web3.utils.toBN(reserve.reserve1) };
+                    reserves[reverseKey] = { reserve0: web3.utils.toBN(reserve.reserve1), reserve1: web3.utils.toBN(reserve.reserve0) };
                 });
             } catch (error) {
                 showAlert("Oops! Couldn't fetch pool reserves. Try again! 😅", false);
@@ -480,9 +462,7 @@
             const payTokenSymbol = payTokenSelect.value;
             if (percentage === 100) {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether'));
-                if (payTokenSymbol === 'BONE' || payTokenSymbol === 'WOOF' || payTokenSymbol === 'LUISA') {
-                    amount = Math.max(0, amount - 0.001);
-                }
+                if (payTokenSymbol === 'BONE' || payTokenSymbol === 'WOOF' || payTokenSymbol === 'LUISA') amount = Math.max(0, amount - 0.001);
             } else {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether')) * (percentage / 100);
             }
@@ -508,16 +488,12 @@
 
         function getReserves(tokenA, tokenB) {
             const key = `${tokenA}-${tokenB}`;
-            if (reserves[key]) {
-                return reserves[key];
-            }
+            if (reserves[key]) return reserves[key];
             return { reserve0: web3.utils.toBN('0'), reserve1: web3.utils.toBN('0') };
         }
 
         function getAmountOut(amountIn, reserveIn, reserveOut) {
-            if (amountIn.lte(web3.utils.toBN('0')) || reserveIn.lte(web3.utils.toBN('0')) || reserveOut.lte(web3.utils.toBN('0'))) {
-                return web3.utils.toBN('0');
-            }
+            if (amountIn.lte(web3.utils.toBN('0')) || reserveIn.lte(web3.utils.toBN('0')) || reserveOut.lte(web3.utils.toBN('0'))) return web3.utils.toBN('0');
             const amountInWithFee = amountIn.mul(web3.utils.toBN(997));
             const numerator = amountInWithFee.mul(reserveOut);
             const denominator = reserveIn.mul(web3.utils.toBN(1000)).add(amountInWithFee);
@@ -528,9 +504,7 @@
             let currentAmount = web3.utils.toBN(amountIn);
             for (let i = 0; i < route.length; i++) {
                 const { reserve0, reserve1 } = getReserves(route[i].from, route[i].to);
-                if (reserve0.lte(web3.utils.toBN('0')) || reserve1.lte(web3.utils.toBN('0'))) {
-                    return web3.utils.toBN('0');
-                }
+                if (reserve0.lte(web3.utils.toBN('0')) || reserve1.lte(web3.utils.toBN('0'))) return web3.utils.toBN('0');
                 currentAmount = getAmountOut(currentAmount, reserve0, reserve1);
             }
             return currentAmount;
@@ -542,9 +516,7 @@
             let totalReserveOut = web3.utils.toBN('0');
             for (let i = 0; i < route.length; i++) {
                 const { reserve0, reserve1 } = getReserves(route[i].from, route[i].to);
-                if (reserve0.lte(web3.utils.toBN('0')) || reserve1.lte(web3.utils.toBN('0'))) {
-                    return 0;
-                }
+                if (reserve0.lte(web3.utils.toBN('0')) || reserve1.lte(web3.utils.toBN('0'))) return 0;
                 totalReserveIn = totalReserveIn.add(reserve0);
                 totalReserveOut = totalReserveOut.add(reserve1);
                 currentAmount = getAmountOut(currentAmount, reserve0, reserve1);
@@ -579,6 +551,8 @@
                 STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('200', 'ether'));
             } else if (payTokenSymbol === 'LUISA') {
                 STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('2000', 'ether'));
+            } else if (payTokenSymbol === 'FEED') {
+                STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('400000000', 'ether'));
             } else {
                 STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('1', 'ether'));
             }
