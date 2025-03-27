@@ -14,6 +14,8 @@
             --input-bg: #373b5c;
             --text-color: #ffffff;
             --border-radius: 15px;
+            --error-color: #ff4444;
+            --success-color: #00C851;
         }
         * {
             box-sizing: border-box;
@@ -85,6 +87,14 @@
             font-size: 1em;
             text-align: right;
         }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
         .percentage-buttons {
             display: flex;
             gap: 5px;
@@ -98,6 +108,7 @@
             cursor: pointer;
             color: var(--text-color);
             flex: 1;
+            transition: background 0.2s;
         }
         .percentage-buttons button:hover { background: #5a5f8a; }
         .swap-button {
@@ -119,14 +130,16 @@
         .status {
             margin-top: 10px;
             font-size: 0.9em;
-            color: var(--primary-color);
             text-align: center;
         }
+        .status.error { color: var(--error-color); }
+        .status.success { color: var(--success-color); }
         .swap-note {
             font-size: 0.9em;
             color: #ff9100;
             margin-top: 5px;
             text-align: left;
+            word-wrap: break-word;
         }
         .spinner {
             display: inline-block;
@@ -167,7 +180,7 @@
                 <option value="WOOF">WOOF</option>
                 <option value="LUISA">LUISA</option>
             </select>
-            <input type="number" id="payAmount" placeholder="0.0" step="0.01">
+            <input type="number" id="payAmount" placeholder="0.0" step="0.01" min="0">
             <div class="percentage-buttons">
                 <button onclick="setPercentage(25)">25%</button>
                 <button onclick="setPercentage(50)">50%</button>
@@ -177,13 +190,13 @@
             <div class="swap-note" id="buyNote"></div>
         </div>
         <button class="swap-button" id="approveBuyButton" onclick="approveBuyToken()" style="display: none;">Approve Token</button>
-        <button class="swap-button" id="buyButton" onclick="buyFEED()">Buy FEED</button>
+        <button class="swap-button" id="buyButton" onclick="buyFEED()" disabled>Buy FEED</button>
         <div class="swap-box">
             <div class="balance-row">
                 <span>Sell FEED for BONE</span>
                 <span id="sellBalance">Balance: 0</span>
             </div>
-            <input type="number" id="sellAmount" placeholder="0.0" step="0.01">
+            <input type="number" id="sellAmount" placeholder="0.0" step="0.01" min="0">
             <div class="percentage-buttons">
                 <button onclick="setSellPercentage(25)">25%</button>
                 <button onclick="setSellPercentage(50)">50%</button>
@@ -192,46 +205,199 @@
             </div>
             <div class="swap-note" id="sellNote"></div>
         </div>
-        <button class="swap-button" id="approveButton" onclick="approveFEED()">Approve FEED</button>
-        <button class="swap-button" id="sellButton" onclick="sellFEED()" style="display: none;">Sell FEED</button>
+        <button class="swap-button" id="approveButton" onclick="approveFEED()" disabled>Approve FEED</button>
+        <button class="swap-button" id="sellButton" onclick="sellFEED()" style="display: none;" disabled>Sell FEED</button>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
     <script>
-        // Token addresses and configurations
+        // Configuration
         const tokens = {
             BONE: { address: "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd", symbol: "BONE", isNative: true },
             WOOF: { address: "0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834", symbol: "WOOF" },
             LUISA: { address: "0x0cCD687CC6F8461170336D8e8cf46A39313DEab9", symbol: "LUISA" },
             FEED: { address: "0xe9Cb2D7ADC24Fc59FE00D6C0A0669BDF16805Fe0", symbol: "FEED" }
         };
-        const routerAddress = "0x96b16aBD53Bfd765F4CD118590C1d0be8B57DE24";
-        const factoryAddress = "0xB9fbdFA27B7ba8BB2d4bB4aB399e4c55F0F7F83a";
-        const feedBuyAndSellAddress = "0x852f466F286F3fa32B6f3ca1D65080D1070Dabf4";
 
-        // ABIs for interacting with contracts
+        const poolAddresses = {
+            WBONE_FEED: "0xD4301bA08076C14Dfc93fd0a94151E338874D7FE",
+            WBONE_WOOF: "0xE7481D3BB7ae1f11E17D64244102044922Cf565F",
+            WBONE_LUISA: "0x95e48cee32dBcEF91Fb99Db4c1Af3Ba7Ef798CB5",
+            WOOF_FEED: "0xa636D7874FFD251da8901Ba8751B23f354544BcC",
+            LUISA_FEED: "0x0A1728A1db63Ed5fdEBBcEbB686AdDfe3127deD0"
+        };
+
+        const routerAddress = "0x96b16aBD53Bfd765F4CD118590C1d0be8B57DE24";
+        const feedSwapAddress = "0xfdf45d31867d3541e70608f0bd6a8f00fcbd1c55";
+
+        // ABIs
         const routerAbi = [
-            {"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"view","type":"function"}
+            {
+                "inputs": [
+                    { "internalType": "uint256", "name": "amountIn", "type": "uint256" },
+                    { "components": [
+                        { "internalType": "address", "name": "from", "type": "address" },
+                        { "internalType": "address", "name": "to", "type": "address" },
+                        { "internalType": "bool", "name": "stable", "type": "bool" }
+                    ], "internalType": "struct Router.route[]", "name": "routes", "type": "tuple[]" }
+                ],
+                "name": "getAmountsOut",
+                "outputs": [
+                    { "internalType": "uint256[]", "name": "amounts", "type": "uint256[]" }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
         ];
-        const factoryAbi = [
-            {"inputs":[{"internalType":"address","name":"tokenA","type":"address"},{"internalType":"address","name":"tokenB","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"name":"getPair","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
-        ];
+
         const pairAbi = [
-            {"inputs":[],"name":"getReserves","outputs":[{"internalType":"uint256","name":"reserve0","type":"uint256"},{"internalType":"uint256","name":"reserve1","type":"uint256"},{"internalType":"uint32","name":"blockTimestampLast","type":"uint32"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"token0","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"token1","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+            {
+                "inputs": [],
+                "name": "getReserves",
+                "outputs": [
+                    { "internalType": "uint256", "name": "reserve0", "type": "uint256" },
+                    { "internalType": "uint256", "name": "reserve1", "type": "uint256" },
+                    { "internalType": "uint32", "name": "blockTimestampLast", "type": "uint32" }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "token0",
+                "outputs": [
+                    { "internalType": "address", "name": "", "type": "address" }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "token1",
+                "outputs": [
+                    { "internalType": "address", "name": "", "type": "address" }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
         ];
-        const feedBuyAndSellAbi = [
-            {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithBONE","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"payable","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithWOOF","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"buyWithLUISA","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"},
-            {"inputs":[{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"}],"name":"getExpectedAmountsOut","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"totalAmountIn","type":"uint256"},{"components":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMin","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct IRouter.route[]","name":"path","type":"tuple[]"}],"internalType":"struct FeedBuyAndSell.SwapRoute[]","name":"routes","type":"tuple[]"},{"internalType":"uint256","name":"deadline","type":"uint256"}],"name":"sellToBONE","outputs":[{"internalType":"uint256[]","name":"amountsOut","type":"uint256[]"}],"stateMutability":"nonpayable","type":"function"}
+
+        const feedSwapAbi = [
+            {
+                "inputs": [
+                    { "internalType": "uint256", "name": "deadline", "type": "uint256" }
+                ],
+                "name": "buyWithWBONE",
+                "outputs": [
+                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
+                ],
+                "stateMutability": "payable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "internalType": "uint256", "name": "totalAmountIn", "type": "uint256" },
+                    { "internalType": "uint256", "name": "deadline", "type": "uint256" }
+                ],
+                "name": "buyWithWOOF",
+                "outputs": [
+                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "internalType": "uint256", "name": "totalAmountIn", "type": "uint256" },
+                    { "internalType": "uint256", "name": "deadline", "type": "uint256" }
+                ],
+                "name": "buyWithLUISA",
+                "outputs": [
+                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "internalType": "uint256", "name": "totalAmountIn", "type": "uint256" },
+                    { "internalType": "uint256", "name": "deadline", "type": "uint256" }
+                ],
+                "name": "sellToWBONE",
+                "outputs": [
+                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "components": [
+                            { "internalType": "uint256", "name": "amountIn", "type": "uint256" },
+                            { "internalType": "uint256", "name": "amountOutMin", "type": "uint256" },
+                            {
+                                "components": [
+                                    { "internalType": "address", "name": "from", "type": "address" },
+                                    { "internalType": "address", "name": "to", "type": "address" },
+                                    { "internalType": "bool", "name": "stable", "type": "bool" }
+                                ],
+                                "internalType": "struct IRouter.route[]",
+                                "name": "path",
+                                "type": "tuple[]"
+                            }
+                        ],
+                        "internalType": "struct FeedSwap.SwapRoute[]",
+                        "name": "routes",
+                        "type": "tuple[]"
+                    }
+                ],
+                "name": "getExpectedAmountsOut",
+                "outputs": [
+                    { "internalType": "uint256[]", "name": "amountsOut", "type": "uint256[]" }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
         ];
+
         const erc20Abi = [
-            {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
-            {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"success","type":"bool"}],"type":"function"},
-            {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"remaining","type":"uint256"}],"type":"function"}
+            {
+                "constant": true,
+                "inputs": [
+                    { "name": "_owner", "type": "address" }
+                ],
+                "name": "balanceOf",
+                "outputs": [
+                    { "name": "balance", "type": "uint256" }
+                ],
+                "type": "function"
+            },
+            {
+                "constant": false,
+                "inputs": [
+                    { "name": "_spender", "type": "address" },
+                    { "name": "_value", "type": "uint256" }
+                ],
+                "name": "approve",
+                "outputs": [
+                    { "name": "success", "type": "bool" }
+                ],
+                "type": "function"
+            },
+            {
+                "constant": true,
+                "inputs": [
+                    { "name": "_owner", "type": "address" },
+                    { "name": "_spender", "type": "address" }
+                ],
+                "name": "allowance",
+                "outputs": [
+                    { "name": "remaining", "type": "uint256" }
+                ],
+                "type": "function"
+            }
         ];
+
         const shibarium = {
             chainId: 109,
             chainName: 'Shibarium',
@@ -241,46 +407,66 @@
         };
 
         // Global variables
-        let web3, account, router, factory, feedBuyAndSell;
+        let web3, account, router, feedSwap;
         let payBalance = '0';
         let feedBalance = '0';
-        let pairCache = new Map(); // Cache for pair addresses
         let reserveCache = new Map(); // Cache for reserves
 
-        // Event listeners for DOM loading
+        // DOM elements
+        const connectWalletButton = document.getElementById('connectWalletButton');
+        const networkStatus = document.getElementById('networkStatus');
+        const buyBalance = document.getElementById('buyBalance');
+        const sellBalance = document.getElementById('sellBalance');
+        const payTokenSelect = document.getElementById('payToken');
+        const payAmountInput = document.getElementById('payAmount');
+        const sellAmountInput = document.getElementById('sellAmount');
+        const buyNote = document.getElementById('buyNote');
+        const sellNote = document.getElementById('sellNote');
+        const approveBuyButton = document.getElementById('approveBuyButton');
+        const buyButton = document.getElementById('buyButton');
+        const approveButton = document.getElementById('approveButton');
+        const sellButton = document.getElementById('sellButton');
+
+        // Event listeners
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('connectWalletButton').addEventListener('click', connectWallet);
-            document.getElementById('payToken').addEventListener('change', updateBalances);
-            document.getElementById('payAmount').addEventListener('input', checkBuyRoutes);
-            document.getElementById('sellAmount').addEventListener('input', checkSellRoutes);
+            connectWalletButton.addEventListener('click', connectWallet);
+            payTokenSelect.addEventListener('change', updateBalances);
+            payAmountInput.addEventListener('input', debounce(checkBuyRoutes, 500));
+            sellAmountInput.addEventListener('input', debounce(checkSellRoutes, 500));
             setupWalletListeners();
         });
 
+        // Debounce function to prevent excessive calls
+        function debounce(func, wait) {
+            let timeout;
+            return function (...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
         // Connect to wallet and initialize contracts
         async function connectWallet() {
-            const status = document.getElementById('networkStatus');
-            const connectButton = document.getElementById('connectWalletButton');
             try {
                 if (!window.ethereum) throw new Error("No wallet detected. Please install MetaMask or another wallet.");
-                connectButton.disabled = true;
-                status.innerHTML = "Connecting... <span class='spinner'></span>";
+                connectWalletButton.disabled = true;
+                setStatus("Connecting... <span class='spinner'></span>");
                 web3 = new Web3(window.ethereum);
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 if (!accounts.length) throw new Error("No accounts found. Please unlock your wallet.");
                 account = accounts[0];
                 await switchToShibarium();
                 router = new web3.eth.Contract(routerAbi, routerAddress);
-                factory = new web3.eth.Contract(factoryAbi, factoryAddress);
-                feedBuyAndSell = new web3.eth.Contract(feedBuyAndSellAbi, feedBuyAndSellAddress);
-                connectButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
-                status.innerText = "Connected to Shibarium";
+                feedSwap = new web3.eth.Contract(feedSwapAbi, feedSwapAddress);
+                connectWalletButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
+                setStatus("Connected to Shibarium", true);
                 await updateBalances();
             } catch (error) {
-                status.innerText = `Failed: ${error.message}`;
+                setStatus(`Failed: ${error.message}`, false);
                 console.error(error);
                 resetUI();
             } finally {
-                connectButton.disabled = false;
+                connectWalletButton.disabled = false;
             }
         }
 
@@ -308,19 +494,23 @@
 
         // Reset UI when disconnected
         function resetUI() {
-            const connectButton = document.getElementById('connectWalletButton');
-            const status = document.getElementById('networkStatus');
-            connectButton.textContent = "Connect Wallet";
-            status.innerText = "Click to connect...";
-            document.getElementById('buyBalance').innerText = "Balance: 0";
-            document.getElementById('sellBalance').innerText = "Balance: 0";
-            document.getElementById('buyNote').innerHTML = "";
-            document.getElementById('sellNote').innerHTML = "";
-            document.getElementById('buyButton').disabled = true;
-            document.getElementById('approveButton').disabled = true;
+            connectWalletButton.textContent = "Connect Wallet";
+            setStatus("Click to connect...");
+            buyBalance.textContent = "Balance: 0";
+            sellBalance.textContent = "Balance: 0";
+            buyNote.innerHTML = "";
+            sellNote.innerHTML = "";
+            buyButton.disabled = true;
+            approveButton.disabled = true;
+            approveBuyButton.style.display = 'none';
+            buyButton.style.display = 'block';
+            approveButton.style.display = 'block';
+            sellButton.style.display = 'none';
+            payAmountInput.value = '';
+            sellAmountInput.value = '';
         }
 
-        // Setup wallet event listeners for account and chain changes
+        // Setup wallet event listeners
         function setupWalletListeners() {
             if (!window.ethereum) return;
             window.ethereum.on('accountsChanged', async (newAccounts) => {
@@ -329,10 +519,9 @@
                     if (web3) {
                         await switchToShibarium();
                         router = new web3.eth.Contract(routerAbi, routerAddress);
-                        factory = new web3.eth.Contract(factoryAbi, factoryAddress);
-                        feedBuyAndSell = new web3.eth.Contract(feedBuyAndSellAbi, feedBuyAndSellAddress);
-                        document.getElementById('connectWalletButton').textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
-                        document.getElementById('networkStatus').innerText = "Connected to Shibarium";
+                        feedSwap = new web3.eth.Contract(feedSwapAbi, feedSwapAddress);
+                        connectWalletButton.textContent = `Connected: ${account.slice(0, 6)}...${account.slice(-4)}`;
+                        setStatus("Connected to Shibarium", true);
                         await updateBalances();
                     } else {
                         await connectWallet();
@@ -341,8 +530,7 @@
                     web3 = null;
                     account = null;
                     router = null;
-                    factory = null;
-                    feedBuyAndSell = null;
+                    feedSwap = null;
                     resetUI();
                 }
             });
@@ -351,62 +539,61 @@
                     web3 = null;
                     account = null;
                     router = null;
-                    factory = null;
-                    feedBuyAndSell = null;
+                    feedSwap = null;
                     resetUI();
-                    document.getElementById('networkStatus').innerText = "Wrong network. Reconnect to Shibarium.";
+                    setStatus("Wrong network. Reconnect to Shibarium.", false);
                 } else if (account) {
                     await connectWallet();
                 }
             });
         }
 
-        // Update balances for the selected pay token and FEED
+        // Update balances
         async function updateBalances() {
             if (!web3 || !account) return;
-            const payTokenSymbol = document.getElementById('payToken').value;
+            const payTokenSymbol = payTokenSelect.value;
             const payToken = tokens[payTokenSymbol];
             try {
                 if (payToken.isNative) {
                     payBalance = await web3.eth.getBalance(account);
-                    document.getElementById('buyBalance').innerText = `Balance: ${parseFloat(web3.utils.fromWei(payBalance, 'ether')).toFixed(4)}`;
+                    buyBalance.textContent = `Balance: ${parseFloat(web3.utils.fromWei(payBalance, 'ether')).toFixed(4)}`;
                 } else {
                     const tokenContract = new web3.eth.Contract(erc20Abi, payToken.address);
                     payBalance = await tokenContract.methods.balanceOf(account).call();
-                    document.getElementById('buyBalance').innerText = `Balance: ${parseFloat(web3.utils.fromWei(payBalance, 'ether')).toFixed(4)}`;
+                    buyBalance.textContent = `Balance: ${parseFloat(web3.utils.fromWei(payBalance, 'ether')).toFixed(4)}`;
                 }
                 const feedContract = new web3.eth.Contract(erc20Abi, tokens.FEED.address);
                 feedBalance = await feedContract.methods.balanceOf(account).call();
-                document.getElementById('sellBalance').innerText = `Balance: ${parseFloat(web3.utils.fromWei(feedBalance, 'ether')).toFixed(4)}`;
+                sellBalance.textContent = `Balance: ${parseFloat(web3.utils.fromWei(feedBalance, 'ether')).toFixed(4)}`;
             } catch (error) {
                 console.error("Error updating balances:", error);
-                document.getElementById('networkStatus').innerText = "Error fetching balances.";
+                setStatus("Error fetching balances.", false);
             }
         }
 
-        // Set percentage of balance for buying (reserves 0.001 BONE for MAX)
+        // Set percentage for buying
         function setPercentage(percentage) {
             if (!payBalance || !web3) {
-                document.getElementById('networkStatus').innerText = "Please connect wallet first.";
+                setStatus("Please connect wallet first.", false);
                 return;
             }
             let amount;
             if (percentage === 100) {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether'));
-                if (document.getElementById('payToken').value === 'BONE') {
-                    amount = Math.max(0, amount - 0.001); // Reserve 0.001 BONE for MAX
+                if (payTokenSelect.value === 'BONE') {
+                    amount = Math.max(0, amount - 0.001); // Reserve 0.001 BONE for gas
                 }
             } else {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether')) * (percentage / 100);
             }
-            document.getElementById('payAmount').value = amount.toFixed(4);
+            payAmountInput.value = amount.toFixed(4);
             checkBuyRoutes();
         }
 
-        // Set percentage of balance for selling (no reserve for FEED)
+        // Set percentage for selling
         function setSellPercentage(percentage) {
             if (!feedBalance || !web3) {
-                document.getElementById('networkStatus').innerText = "Please connect wallet first.";
+                setStatus("Please connect wallet first.", false);
                 return;
             }
             let amount;
@@ -415,32 +602,33 @@
             } else {
                 amount = parseFloat(web3.utils.fromWei(feedBalance, 'ether')) * (percentage / 100);
             }
-            document.getElementById('sellAmount').value = amount.toFixed(4);
+            sellAmountInput.value = amount.toFixed(4);
             checkSellRoutes();
-        }
-
-        // Fetch pair address with caching
-        async function getPairAddress(tokenA, tokenB) {
-            const key = `${tokenA}-${tokenB}-false`;
-            if (pairCache.has(key)) {
-                return pairCache.get(key);
-            }
-            const pairAddress = await factory.methods.getPair(tokenA, tokenB, false).call();
-            pairCache.set(key, pairAddress);
-            return pairAddress;
         }
 
         // Fetch reserves for a pool with caching
         async function getPoolReserves(tokenA, tokenB) {
-            const pairAddress = await getPairAddress(tokenA, tokenB);
-            if (pairAddress === '0x0000000000000000000000000000000000000000') {
+            let pairAddress;
+            if (tokenA === tokens.BONE.address && tokenB === tokens.FEED.address || tokenA === tokens.FEED.address && tokenB === tokens.BONE.address) {
+                pairAddress = poolAddresses.WBONE_FEED;
+            } else if (tokenA === tokens.BONE.address && tokenB === tokens.WOOF.address || tokenA === tokens.WOOF.address && tokenB === tokens.BONE.address) {
+                pairAddress = poolAddresses.WBONE_WOOF;
+            } else if (tokenA === tokens.BONE.address && tokenB === tokens.LUISA.address || tokenA === tokens.LUISA.address && tokenB === tokens.BONE.address) {
+                pairAddress = poolAddresses.WBONE_LUISA;
+            } else if (tokenA === tokens.WOOF.address && tokenB === tokens.FEED.address || tokenA === tokens.FEED.address && tokenB === tokens.WOOF.address) {
+                pairAddress = poolAddresses.WOOF_FEED;
+            } else if (tokenA === tokens.LUISA.address && tokenB === tokens.FEED.address || tokenA === tokens.FEED.address && tokenB === tokens.LUISA.address) {
+                pairAddress = poolAddresses.LUISA_FEED;
+            } else {
                 return { reserveA: web3.utils.toBN('0'), reserveB: web3.utils.toBN('0'), exists: false };
             }
+
             const key = pairAddress;
             if (reserveCache.has(key)) {
                 const cached = reserveCache.get(key);
                 return { reserveA: web3.utils.toBN(cached.reserveA), reserveB: web3.utils.toBN(cached.reserveB), exists: true };
             }
+
             const pairContract = new web3.eth.Contract(pairAbi, pairAddress);
             const reserves = await pairContract.methods.getReserves().call();
             const token0 = await pairContract.methods.token0().call();
@@ -451,7 +639,7 @@
             return { reserveA: web3.utils.toBN(reserveA), reserveB: web3.utils.toBN(reserveB), exists: true };
         }
 
-        // Calculate output for a given route with the specified amountIn
+        // Calculate output for a given route
         async function getOutputForRoute(route, amountIn) {
             let currentAmount = web3.utils.toBN(amountIn);
             for (let i = 0; i < route.length; i++) {
@@ -477,13 +665,13 @@
         // Check allowance for a token
         async function checkAllowance(tokenAddress, amount) {
             const tokenContract = new web3.eth.Contract(erc20Abi, tokenAddress);
-            const allowance = await tokenContract.methods.allowance(account, feedBuyAndSellAddress).call();
+            const allowance = await tokenContract.methods.allowance(account, feedSwapAddress).call();
             return web3.utils.toBN(allowance).gte(web3.utils.toBN(amount));
         }
 
         // Optimize routes using aggregation trading
         async function optimizeRoutes(possibleRoutes, totalAmountInWei, outputToken) {
-            const STEP_AMOUNT = web3.utils.toWei('0.01', 'ether'); // Small step for allocation
+            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('0.01', 'ether')); // Small step for allocation
             let remainingAmount = web3.utils.toBN(totalAmountInWei);
             const routeAllocations = possibleRoutes.map(route => ({
                 route,
@@ -491,13 +679,11 @@
                 amountOut: web3.utils.toBN('0')
             }));
 
-            // Continue allocating until all amount is used
             while (remainingAmount.gt(web3.utils.toBN('0'))) {
                 let bestRouteIndex = -1;
                 let bestEfficiency = 0;
                 let bestOutput = web3.utils.toBN('0');
 
-                // Find the route with the best efficiency for the next step
                 for (let i = 0; i < possibleRoutes.length; i++) {
                     const route = possibleRoutes[i];
                     const stepAmount = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
@@ -510,7 +696,7 @@
                     }
                 }
 
-                if (bestRouteIndex === -1) break; // No more valid routes
+                if (bestRouteIndex === -1) break;
 
                 const stepAmount = remainingAmount.lt(STEP_AMOUNT) ? remainingAmount : STEP_AMOUNT;
                 routeAllocations[bestRouteIndex].amountIn = routeAllocations[bestRouteIndex].amountIn.add(stepAmount);
@@ -518,12 +704,11 @@
                 remainingAmount = remainingAmount.sub(stepAmount);
             }
 
-            // Convert to swap routes
             const swapRoutes = routeAllocations
                 .filter(alloc => alloc.amountIn.gt(web3.utils.toBN('0')))
                 .map(alloc => ({
                     amountIn: alloc.amountIn.toString(),
-                    amountOutMin: 0,
+                    amountOutMin: '0',
                     path: alloc.route,
                     amountOut: alloc.amountOut
                 }));
@@ -531,45 +716,44 @@
             return swapRoutes;
         }
 
-        // Check buy routes using aggregation trading
+        // Check buy routes
         async function checkBuyRoutes() {
-            const buyNote = document.getElementById('buyNote');
-            const buyButton = document.getElementById('buyButton');
-            const approveBuyButton = document.getElementById('approveBuyButton');
-            const payTokenSymbol = document.getElementById('payToken').value;
+            buyNote.innerHTML = '';
+            buyButton.disabled = true;
+            approveBuyButton.style.display = 'none';
+            buyButton.style.display = 'block';
+
+            const payTokenSymbol = payTokenSelect.value;
             const payToken = tokens[payTokenSymbol];
-            const amountIn = document.getElementById('payAmount').value;
+            const amountIn = payAmountInput.value;
+
             if (!web3 || !account || !amountIn || amountIn <= 0) {
-                buyNote.innerHTML = '';
-                buyButton.disabled = true;
-                approveBuyButton.style.display = 'none';
+                buyNote.innerHTML = 'Please enter a valid amount.';
                 return;
             }
+
             let amountInWei;
             try {
                 amountInWei = web3.utils.toWei(amountIn.toString(), 'ether');
+                amountInWei = web3.utils.toBN(amountInWei);
             } catch (error) {
                 buyNote.innerHTML = 'Invalid amount entered.';
-                buyButton.disabled = true;
-                approveBuyButton.style.display = 'none';
                 return;
             }
-            if (web3.utils.toBN(amountInWei).gt(web3.utils.toBN(payBalance))) {
+
+            if (amountInWei.gt(web3.utils.toBN(payBalance))) {
                 buyNote.innerHTML = 'Insufficient balance.';
-                buyButton.disabled = true;
-                approveBuyButton.style.display = 'none';
                 return;
             }
+
             buyNote.innerHTML = `Checking routes... <span class="spinner"></span>`;
 
-            // Check allowance for non-native tokens
             let needsApproval = false;
             if (!payToken.isNative) {
                 const hasAllowance = await checkAllowance(payToken.address, amountInWei);
                 needsApproval = !hasAllowance;
             }
 
-            // Define possible routes based on pay token
             let possibleRoutes = [];
             if (payTokenSymbol === 'BONE') {
                 possibleRoutes = [
@@ -590,17 +774,13 @@
             }
 
             try {
-                // Optimize routes using aggregation trading
                 const swapRoutes = await optimizeRoutes(possibleRoutes, amountInWei, tokens.FEED.address);
 
                 if (!swapRoutes.length) {
                     buyNote.innerHTML = 'No available routes found.';
-                    buyButton.disabled = true;
-                    approveBuyButton.style.display = 'none';
                     return;
                 }
 
-                // Calculate total output and display
                 let totalOutput = web3.utils.toBN('0');
                 let html = 'AVAILABLE ROUTES:<br>';
                 for (const route of swapRoutes) {
@@ -612,8 +792,7 @@
                     html += `${path}: ${outputEther.toFixed(2)} FEED (${share.toFixed(1)}%) -> ${amountInEther.toFixed(2)} ${payTokenSymbol}<br>`;
                 }
 
-                // Set minimum output amounts
-                const expectedAmounts = await feedBuyAndSell.methods.getExpectedAmountsOut(swapRoutes).call();
+                const expectedAmounts = await feedSwap.methods.getExpectedAmountsOut(swapRoutes).call();
                 for (let i = 0; i < swapRoutes.length; i++) {
                     swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
@@ -622,7 +801,7 @@
                 html += `TOTAL: ${totalOutputEther.toFixed(2)} FEED`;
                 buyNote.innerHTML = html;
                 window.buyRoutes = swapRoutes;
-                window.buyTotalAmount = amountInWei;
+                window.buyTotalAmount = amountInWei.toString();
                 window.buyPayToken = payTokenSymbol;
                 buyButton.disabled = false;
                 approveBuyButton.style.display = needsApproval ? 'block' : 'none';
@@ -630,33 +809,29 @@
             } catch (error) {
                 console.error("Error checking buy routes:", error);
                 buyNote.innerHTML = 'Error checking routes: ' + (error.message || "Unknown error");
-                buyButton.disabled = true;
-                approveBuyButton.style.display = 'none';
             }
         }
 
         // Approve token for buying
         async function approveBuyToken() {
-            const approveBuyButton = document.getElementById('approveBuyButton');
-            const buyButton = document.getElementById('buyButton');
-            const status = document.getElementById('networkStatus');
             const payTokenSymbol = window.buyPayToken;
             const totalAmount = window.buyTotalAmount;
             if (!web3 || !account || !totalAmount) {
-                status.innerText = "Please connect wallet and enter a valid amount.";
+                setStatus("Please connect wallet and enter a valid amount.", false);
                 return;
             }
             try {
                 approveBuyButton.disabled = true;
-                status.innerHTML = `Approving ${payTokenSymbol}... <span class="spinner"></span>`;
+                setStatus(`Approving ${payTokenSymbol}... <span class="spinner"></span>`);
                 const tokenContract = new web3.eth.Contract(erc20Abi, tokens[payTokenSymbol].address);
-                await tokenContract.methods.approve(feedBuyAndSellAddress, totalAmount).send({ from: account });
-                status.innerText = "Approval successful!";
+                await tokenContract.methods.approve(feedSwapAddress, totalAmount).send({ from: account });
+                setStatus("Approval successful!", true);
                 approveBuyButton.style.display = 'none';
                 buyButton.style.display = 'block';
+                buyButton.disabled = false;
             } catch (error) {
                 console.error("Approval failed:", error);
-                status.innerText = error.message || "Approval failed.";
+                setStatus(error.message || "Approval failed.", false);
             } finally {
                 approveBuyButton.disabled = false;
             }
@@ -664,11 +839,8 @@
 
         // Execute buy transaction
         async function buyFEED() {
-            const buyButton = document.getElementById('buyButton');
-            const status = document.getElementById('networkStatus');
-            const buyNote = document.getElementById('buyNote');
             if (!web3 || !account || !window.buyRoutes) {
-                status.innerText = "Please connect wallet and enter a valid amount.";
+                setStatus("Please connect wallet and enter a valid amount.", false);
                 return;
             }
             const payTokenSymbol = window.buyPayToken;
@@ -676,63 +848,59 @@
             const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
             try {
                 buyButton.disabled = true;
-                status.innerHTML = "Processing buy... <span class='spinner'></span>";
+                setStatus("Processing buy... <span class='spinner'></span>");
                 if (payTokenSymbol === 'BONE') {
-                    await feedBuyAndSell.methods.buyWithBONE(window.buyRoutes, deadline).send({ from: account, value: totalAmount });
+                    await feedSwap.methods.buyWithWBONE(deadline).send({ from: account, value: totalAmount });
                 } else if (payTokenSymbol === 'WOOF') {
-                    await feedBuyAndSell.methods.buyWithWOOF(totalAmount, window.buyRoutes, deadline).send({ from: account });
+                    await feedSwap.methods.buyWithWOOF(totalAmount, deadline).send({ from: account });
                 } else if (payTokenSymbol === 'LUISA') {
-                    await feedBuyAndSell.methods.buyWithLUISA(totalAmount, window.buyRoutes, deadline).send({ from: account });
+                    await feedSwap.methods.buyWithLUISA(totalAmount, deadline).send({ from: account });
                 }
-                status.innerText = "Buy successful!";
-                document.getElementById('payAmount').value = '';
+                setStatus("Buy successful!", true);
+                payAmountInput.value = '';
                 buyNote.innerHTML = '';
                 await updateBalances();
             } catch (error) {
                 console.error("Buy failed:", error);
-                status.innerText = error.message || "Buy failed.";
+                setStatus(error.message || "Buy failed.", false);
             } finally {
                 buyButton.disabled = false;
             }
         }
 
-        // Check sell routes using aggregation trading
+        // Check sell routes
         async function checkSellRoutes() {
-            const sellNote = document.getElementById('sellNote');
-            const approveButton = document.getElementById('approveButton');
-            const sellButton = document.getElementById('sellButton');
-            const amountIn = document.getElementById('sellAmount').value;
+            sellNote.innerHTML = '';
+            approveButton.style.display = 'block';
+            sellButton.style.display = 'none';
+            approveButton.disabled = true;
+            sellButton.disabled = true;
+
+            const amountIn = sellAmountInput.value;
             if (!web3 || !account || !amountIn || amountIn <= 0) {
-                sellNote.innerHTML = '';
-                approveButton.style.display = 'block';
-                sellButton.style.display = 'none';
-                approveButton.disabled = true;
+                sellNote.innerHTML = 'Please enter a valid amount.';
                 return;
             }
+
             let amountInWei;
             try {
                 amountInWei = web3.utils.toWei(amountIn.toString(), 'ether');
+                amountInWei = web3.utils.toBN(amountInWei);
             } catch (error) {
                 sellNote.innerHTML = 'Invalid amount entered.';
-                approveButton.style.display = 'block';
-                sellButton.style.display = 'none';
-                approveButton.disabled = true;
                 return;
             }
-            if (web3.utils.toBN(amountInWei).gt(web3.utils.toBN(feedBalance))) {
+
+            if (amountInWei.gt(web3.utils.toBN(feedBalance))) {
                 sellNote.innerHTML = 'Insufficient balance.';
-                approveButton.style.display = 'block';
-                sellButton.style.display = 'none';
-                approveButton.disabled = true;
                 return;
             }
+
             sellNote.innerHTML = `Checking routes... <span class="spinner"></span>`;
 
-            // Check allowance for FEED
             const hasAllowance = await checkAllowance(tokens.FEED.address, amountInWei);
             const needsApproval = !hasAllowance;
 
-            // Define possible routes for selling
             const possibleRoutes = [
                 [{ from: tokens.FEED.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }],
                 [{ from: tokens.FEED.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }],
@@ -740,18 +908,13 @@
             ];
 
             try {
-                // Optimize routes using aggregation trading
                 const swapRoutes = await optimizeRoutes(possibleRoutes, amountInWei, tokens.BONE.address);
 
                 if (!swapRoutes.length) {
                     sellNote.innerHTML = 'No available routes found.';
-                    approveButton.style.display = 'block';
-                    sellButton.style.display = 'none';
-                    approveButton.disabled = true;
                     return;
                 }
 
-                // Calculate total output and display
                 let totalOutput = web3.utils.toBN('0');
                 let html = 'AVAILABLE ROUTES:<br>';
                 for (const route of swapRoutes) {
@@ -763,8 +926,7 @@
                     html += `${path}: ${outputEther.toFixed(2)} BONE (${share.toFixed(1)}%) -> ${amountInEther.toFixed(2)} FEED<br>`;
                 }
 
-                // Set minimum output amounts
-                const expectedAmounts = await feedBuyAndSell.methods.getExpectedAmountsOut(swapRoutes).call();
+                const expectedAmounts = await feedSwap.methods.getExpectedAmountsOut(swapRoutes).call();
                 for (let i = 0; i < swapRoutes.length; i++) {
                     swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
@@ -773,39 +935,35 @@
                 html += `TOTAL: ${totalOutputEther.toFixed(2)} BONE`;
                 sellNote.innerHTML = html;
                 window.sellRoutes = swapRoutes;
-                window.sellTotalAmount = amountInWei;
+                window.sellTotalAmount = amountInWei.toString();
                 approveButton.style.display = needsApproval ? 'block' : 'none';
                 sellButton.style.display = needsApproval ? 'none' : 'block';
                 approveButton.disabled = false;
+                if (!needsApproval) sellButton.disabled = false;
             } catch (error) {
                 console.error("Error checking sell routes:", error);
                 sellNote.innerHTML = 'Error checking routes: ' + (error.message || "Unknown error");
-                approveButton.style.display = 'block';
-                sellButton.style.display = 'none';
-                approveButton.disabled = true;
             }
         }
 
         // Approve FEED for selling
         async function approveFEED() {
-            const approveButton = document.getElementById('approveButton');
-            const sellButton = document.getElementById('sellButton');
-            const status = document.getElementById('networkStatus');
             if (!web3 || !account || !window.sellTotalAmount) {
-                status.innerText = "Please connect wallet and enter a valid amount.";
+                setStatus("Please connect wallet and enter a valid amount.", false);
                 return;
             }
             try {
                 approveButton.disabled = true;
-                status.innerHTML = "Approving FEED... <span class='spinner'></span>";
+                setStatus("Approving FEED... <span class='spinner'></span>");
                 const feedContract = new web3.eth.Contract(erc20Abi, tokens.FEED.address);
-                await feedContract.methods.approve(feedBuyAndSellAddress, window.sellTotalAmount).send({ from: account });
-                status.innerText = "Approval successful!";
+                await feedContract.methods.approve(feedSwapAddress, window.sellTotalAmount).send({ from: account });
+                setStatus("Approval successful!", true);
                 approveButton.style.display = 'none';
                 sellButton.style.display = 'block';
+                sellButton.disabled = false;
             } catch (error) {
                 console.error("Approval failed:", error);
-                status.innerText = error.message || "Approval failed.";
+                setStatus(error.message || "Approval failed.", false);
             } finally {
                 approveButton.disabled = false;
             }
@@ -813,31 +971,38 @@
 
         // Execute sell transaction
         async function sellFEED() {
-            const sellButton = document.getElementById('sellButton');
-            const approveButton = document.getElementById('approveButton');
-            const status = document.getElementById('networkStatus');
-            const sellNote = document.getElementById('sellNote');
             if (!web3 || !account || !window.sellRoutes) {
-                status.innerText = "Please connect wallet and enter a valid amount.";
+                setStatus("Please connect wallet and enter a valid amount.", false);
                 return;
             }
             const totalAmount = window.sellTotalAmount;
             const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
             try {
                 sellButton.disabled = true;
-                status.innerHTML = "Processing sell... <span class='spinner'></span>";
-                await feedBuyAndSell.methods.sellToBONE(totalAmount, window.sellRoutes, deadline).send({ from: account });
-                status.innerText = "Sell successful!";
-                document.getElementById('sellAmount').value = '';
+                setStatus("Processing sell... <span class='spinner'></span>");
+                await feedSwap.methods.sellToWBONE(totalAmount, deadline).send({ from: account });
+                setStatus("Sell successful!", true);
+                sellAmountInput.value = '';
                 sellNote.innerHTML = '';
                 approveButton.style.display = 'block';
                 sellButton.style.display = 'none';
                 await updateBalances();
             } catch (error) {
                 console.error("Sell failed:", error);
-                status.innerText = error.message || "Sell failed.";
+                setStatus(error.message || "Sell failed.", false);
             } finally {
                 sellButton.disabled = false;
+            }
+        }
+
+        // Utility function to set status message
+        function setStatus(message, success = null) {
+            networkStatus.innerHTML = message;
+            networkStatus.className = 'status';
+            if (success === true) {
+                networkStatus.classList.add('success');
+            } else if (success === false) {
+                networkStatus.classList.add('error');
             }
         }
     </script>
