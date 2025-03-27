@@ -196,6 +196,7 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
     <script>
+        // Token addresses and configurations
         const tokens = {
             BONE: { address: "0x839FdB6cc98342B428E074C1573ADF6D48CA3bFd", symbol: "BONE", isNative: true },
             WOOF: { address: "0xD0daa7B6ff1B40d3cc6F0B2Cf7E85cB993D1c834", symbol: "WOOF" },
@@ -205,6 +206,8 @@
         const routerAddress = "0x96b16aBD53Bfd765F4CD118590C1d0be8B57DE24";
         const factoryAddress = "0xB9fbdFA27B7ba8BB2d4bB4aB399e4c55F0F7F83a";
         const feedBuyAndSellAddress = "0x852f466F286F3fa32B6f3ca1D65080D1070Dabf4";
+
+        // ABIs for interacting with contracts
         const routerAbi = [
             {"inputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"},{"components":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"bool","name":"stable","type":"bool"}],"internalType":"struct Router.route[]","name":"routes","type":"tuple[]"}],"name":"getAmountsOut","outputs":[{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"stateMutability":"view","type":"function"}
         ];
@@ -234,11 +237,14 @@
             rpcUrls: ['https://rpc.shibrpc.com'],
             blockExplorerUrls: ['https://shibariumscan.io']
         };
+
+        // Global variables
         let web3, account, router, factory, feedBuyAndSell;
         let payBalance = '0';
         let feedBalance = '0';
         const defaultSlippage = 0.005;
 
+        // Event listeners for DOM loading
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('connectWalletButton').addEventListener('click', connectWallet);
             document.getElementById('payToken').addEventListener('change', updateBalances);
@@ -247,6 +253,7 @@
             setupWalletListeners();
         });
 
+        // Connect to wallet and initialize contracts
         async function connectWallet() {
             const status = document.getElementById('networkStatus');
             const connectButton = document.getElementById('connectWalletButton');
@@ -274,6 +281,7 @@
             }
         }
 
+        // Switch to Shibarium network
         async function switchToShibarium() {
             const chainId = await web3.eth.getChainId();
             if (Number(chainId) !== 109) {
@@ -295,6 +303,7 @@
             }
         }
 
+        // Reset UI when disconnected
         function resetUI() {
             const connectButton = document.getElementById('connectWalletButton');
             const status = document.getElementById('networkStatus');
@@ -302,6 +311,7 @@
             status.innerText = "Click to connect...";
         }
 
+        // Setup wallet event listeners for account and chain changes
         function setupWalletListeners() {
             if (!window.ethereum) return;
             window.ethereum.on('accountsChanged', async (newAccounts) => {
@@ -342,6 +352,7 @@
             });
         }
 
+        // Update balances for the selected pay token and FEED
         async function updateBalances() {
             if (!web3 || !account) return;
             const payTokenSymbol = document.getElementById('payToken').value;
@@ -359,6 +370,7 @@
             document.getElementById('sellBalance').innerText = `Balance: ${web3.utils.fromWei(feedBalance, 'ether')}`;
         }
 
+        // Set percentage of balance for buying (reserves 0.001 BONE for MAX)
         function setPercentage(percentage) {
             if (!payBalance || !web3) {
                 document.getElementById('networkStatus').innerText = "Please connect wallet first.";
@@ -368,7 +380,7 @@
             if (percentage === 100) {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether'));
                 if (document.getElementById('payToken').value === 'BONE') {
-                    amount = Math.max(0, amount - 0.001);
+                    amount = Math.max(0, amount - 0.001); // Reserve 0.001 BONE for MAX
                 }
             } else {
                 amount = parseFloat(web3.utils.fromWei(payBalance, 'ether')) * (percentage / 100);
@@ -377,6 +389,7 @@
             checkBuyRoutes();
         }
 
+        // Set percentage of balance for selling (no reserve for FEED)
         function setSellPercentage(percentage) {
             if (!feedBalance || !web3) {
                 document.getElementById('networkStatus').innerText = "Please connect wallet first.";
@@ -392,6 +405,7 @@
             checkSellRoutes();
         }
 
+        // Fetch reserves for a pool (returns reserves for tokenA and tokenB)
         async function getPoolReserves(tokenA, tokenB) {
             const pairAddress = await factory.methods.getPair(tokenA, tokenB, false).call();
             if (pairAddress === '0x0000000000000000000000000000000000000000') {
@@ -405,6 +419,22 @@
             return { reserveA, reserveB, exists: true };
         }
 
+        // Fetch FEED reserves for BONE/FEED, WOOF/FEED, and LUISA/FEED pools
+        async function getFeedReserves() {
+            const feedReserves = {};
+            // BONE/FEED pool
+            const boneFeed = await getPoolReserves(tokens.BONE.address, tokens.FEED.address);
+            feedReserves['BONE/FEED'] = boneFeed.exists ? (boneFeed.reserveB.toString() === tokens.FEED.address ? boneFeed.reserveA : boneFeed.reserveB) : web3.utils.toBN('0');
+            // WOOF/FEED pool
+            const woofFeed = await getPoolReserves(tokens.WOOF.address, tokens.FEED.address);
+            feedReserves['WOOF/FEED'] = woofFeed.exists ? (woofFeed.reserveB.toString() === tokens.FEED.address ? woofFeed.reserveA : woofFeed.reserveB) : web3.utils.toBN('0');
+            // LUISA/FEED pool
+            const luisaFeed = await getPoolReserves(tokens.LUISA.address, tokens.FEED.address);
+            feedReserves['LUISA/FEED'] = luisaFeed.exists ? (luisaFeed.reserveB.toString() === tokens.FEED.address ? luisaFeed.reserveA : luisaFeed.reserveB) : web3.utils.toBN('0');
+            return feedReserves;
+        }
+
+        // Calculate output for a given route with the specified amountIn
         async function getOutputForRoute(route, amountIn) {
             let currentAmount = web3.utils.toBN(amountIn);
             for (let i = 0; i < route.length; i++) {
@@ -427,6 +457,7 @@
             return currentAmount;
         }
 
+        // Check buy routes and optimize allocation based on FEED reserves
         async function checkBuyRoutes() {
             const buyNote = document.getElementById('buyNote');
             const buyButton = document.getElementById('buyButton');
@@ -447,47 +478,82 @@
                 return;
             }
             buyNote.innerHTML = `Checking routes... <span class="spinner"></span>`;
+
+            // Define possible routes based on pay token
             let possibleRoutes = [];
             if (payTokenSymbol === 'BONE') {
                 possibleRoutes = [
-                    [{ from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
-                    [{ from: tokens.BONE.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }],
-                    [{ from: tokens.BONE.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }]
+                    [{ from: tokens.BONE.address, to: tokens.FEED.address, stable: false }], // BONE -> FEED
+                    [{ from: tokens.BONE.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }], // BONE -> WOOF -> FEED
+                    [{ from: tokens.BONE.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }] // BONE -> LUISA -> FEED
                 ];
             } else if (payTokenSymbol === 'WOOF') {
                 possibleRoutes = [
-                    [{ from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
-                    [{ from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }]
+                    [{ from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }], // WOOF -> BONE -> FEED
+                    [{ from: tokens.WOOF.address, to: tokens.FEED.address, stable: false }] // WOOF -> FEED
                 ];
             } else if (payTokenSymbol === 'LUISA') {
                 possibleRoutes = [
-                    [{ from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }],
-                    [{ from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }]
+                    [{ from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }, { from: tokens.BONE.address, to: tokens.FEED.address, stable: false }], // LUISA -> BONE -> FEED
+                    [{ from: tokens.LUISA.address, to: tokens.FEED.address, stable: false }] // LUISA -> FEED
                 ];
             }
+
             try {
-                const routeOutputs = [];
-                const totalAmountIn = web3.utils.toBN(amountInWei);
-                let totalOutput = web3.utils.toBN('0');
+                // Fetch FEED reserves for relevant pools
+                const feedReserves = await getFeedReserves();
+                const routeWeights = [];
+
+                // Calculate weights based on FEED reserves for each route
                 for (const route of possibleRoutes) {
-                    const testAmount = web3.utils.toWei('1', 'ether');
-                    const output = await getOutputForRoute(route, testAmount);
-                    if (output.lte(web3.utils.toBN('0'))) continue;
-                    routeOutputs.push({ route, efficiency: output, output });
-                    totalOutput = totalOutput.add(output);
+                    let weight = web3.utils.toBN('0');
+                    if (payTokenSymbol === 'BONE') {
+                        if (route.length === 1) { // BONE -> FEED
+                            weight = feedReserves['BONE/FEED'];
+                        } else if (route[1].from === tokens.WOOF.address) { // BONE -> WOOF -> FEED
+                            weight = feedReserves['WOOF/FEED'];
+                        } else { // BONE -> LUISA -> FEED
+                            weight = feedReserves['LUISA/FEED'];
+                        }
+                    } else if (payTokenSymbol === 'WOOF') {
+                        if (route.length === 1) { // WOOF -> FEED
+                            weight = feedReserves['WOOF/FEED'];
+                        } else { // WOOF -> BONE -> FEED
+                            weight = feedReserves['BONE/FEED'];
+                        }
+                    } else if (payTokenSymbol === 'LUISA') {
+                        if (route.length === 1) { // LUISA -> FEED
+                            weight = feedReserves['LUISA/FEED'];
+                        } else { // LUISA -> BONE -> FEED
+                            weight = feedReserves['BONE/FEED'];
+                        }
+                    }
+                    if (weight.gt(web3.utils.toBN('0'))) {
+                        routeWeights.push({ route, weight });
+                    }
                 }
-                if (!routeOutputs.length) {
+
+                if (!routeWeights.length) {
                     buyNote.innerHTML = 'No available routes found.';
                     buyButton.disabled = true;
                     return;
                 }
+
+                // Calculate total weight for proportional allocation
+                let totalWeight = web3.utils.toBN('0');
+                for (const { weight } of routeWeights) {
+                    totalWeight = totalWeight.add(weight);
+                }
+
                 const swapRoutes = [];
                 let totalOutputFloat = 0;
-                let remainingAmount = totalAmountIn;
+                let remainingAmount = web3.utils.toBN(amountInWei);
                 let html = 'AVAILABLE ROUTES:<br>';
-                for (const { route, efficiency } of routeOutputs) {
-                    const share = efficiency.mul(web3.utils.toBN(10000)).div(totalOutput).toNumber() / 10000;
-                    const routeAmountIn = totalAmountIn.mul(web3.utils.toBN(Math.floor(share * 10000))).div(web3.utils.toBN(10000));
+
+                // Allocate amounts based on FEED reserve weights
+                for (const { route, weight } of routeWeights) {
+                    const share = weight.mul(web3.utils.toBN(10000)).div(totalWeight).toNumber() / 10000;
+                    const routeAmountIn = web3.utils.toBN(amountInWei).mul(web3.utils.toBN(Math.floor(share * 10000))).div(web3.utils.toBN(10000));
                     if (routeAmountIn.lte(web3.utils.toBN('0'))) continue;
                     if (routeAmountIn.gt(remainingAmount)) continue;
                     remainingAmount = remainingAmount.sub(routeAmountIn);
@@ -504,8 +570,10 @@
                         share: share * 100
                     });
                 }
+
+                // Allocate remaining amount to the route with the highest FEED reserve
                 if (remainingAmount.gt(web3.utils.toBN('0')) && swapRoutes.length > 0) {
-                    const bestRoute = routeOutputs.reduce((best, current) => current.efficiency.gt(best.efficiency) ? current : best);
+                    const bestRoute = routeWeights.reduce((best, current) => current.weight.gt(best.weight) ? current : best);
                     const output = await getOutputForRoute(bestRoute.route, remainingAmount);
                     const outputEther = parseFloat(web3.utils.fromWei(output, 'ether'));
                     totalOutputFloat += outputEther;
@@ -520,15 +588,19 @@
                         share
                     });
                 }
+
                 if (!swapRoutes.length) {
                     buyNote.innerHTML = 'No available routes found.';
                     buyButton.disabled = true;
                     return;
                 }
+
+                // Set minimum output amounts based on expected amounts
                 const expectedAmounts = await feedBuyAndSell.methods.getExpectedAmountsOut(swapRoutes).call();
                 for (let i = 0; i < swapRoutes.length; i++) {
                     swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
+
                 html += `TOTAL: ${totalOutputFloat.toFixed(2)} FEED`;
                 buyNote.innerHTML = html;
                 window.buyRoutes = swapRoutes;
@@ -542,6 +614,7 @@
             }
         }
 
+        // Execute buy transaction
         async function buyFEED() {
             const buyButton = document.getElementById('buyButton');
             const status = document.getElementById('networkStatus');
@@ -575,6 +648,7 @@
             }
         }
 
+        // Check sell routes and optimize allocation based on FEED reserves
         async function checkSellRoutes() {
             const sellNote = document.getElementById('sellNote');
             const approveButton = document.getElementById('approveButton');
@@ -598,36 +672,57 @@
                 return;
             }
             sellNote.innerHTML = `Checking routes... <span class="spinner"></span>`;
+
+            // Define possible routes for selling FEED
             const possibleRoutes = [
-                [{ from: tokens.FEED.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }],
-                [{ from: tokens.FEED.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }],
-                [{ from: tokens.FEED.address, to: tokens.BONE.address, stable: false }]
+                [{ from: tokens.FEED.address, to: tokens.LUISA.address, stable: false }, { from: tokens.LUISA.address, to: tokens.BONE.address, stable: false }], // FEED -> LUISA -> BONE
+                [{ from: tokens.FEED.address, to: tokens.WOOF.address, stable: false }, { from: tokens.WOOF.address, to: tokens.BONE.address, stable: false }], // FEED -> WOOF -> BONE
+                [{ from: tokens.FEED.address, to: tokens.BONE.address, stable: false }] // FEED -> BONE
             ];
+
             try {
-                const routeOutputs = [];
-                const totalAmountIn = web3.utils.toBN(amountInWei);
-                let totalOutput = web3.utils.toBN('0');
+                // Fetch FEED reserves for relevant pools
+                const feedReserves = await getFeedReserves();
+                const routeWeights = [];
+
+                // Calculate weights based on FEED reserves for each route
                 for (const route of possibleRoutes) {
-                    const testAmount = web3.utils.toWei('1', 'ether');
-                    const output = await getOutputForRoute(route, testAmount);
-                    if (output.lte(web3.utils.toBN('0'))) continue;
-                    routeOutputs.push({ route, efficiency: output, output });
-                    totalOutput = totalOutput.add(output);
+                    let weight = web3.utils.toBN('0');
+                    if (route.length === 1) { // FEED -> BONE
+                        weight = feedReserves['BONE/FEED'];
+                    } else if (route[0].to === tokens.WOOF.address) { // FEED -> WOOF -> BONE
+                        weight = feedReserves['WOOF/FEED'];
+                    } else { // FEED -> LUISA -> BONE
+                        weight = feedReserves['LUISA/FEED'];
+                    }
+                    if (weight.gt(web3.utils.toBN('0'))) {
+                        routeWeights.push({ route, weight });
+                    }
                 }
-                if (!routeOutputs.length) {
+
+                if (!routeWeights.length) {
                     sellNote.innerHTML = 'No available routes found.';
                     approveButton.style.display = 'block';
                     sellButton.style.display = 'none';
                     approveButton.disabled = true;
                     return;
                 }
+
+                // Calculate total weight for proportional allocation
+                let totalWeight = web3.utils.toBN('0');
+                for (const { weight } of routeWeights) {
+                    totalWeight = totalWeight.add(weight);
+                }
+
                 const swapRoutes = [];
                 let totalOutputFloat = 0;
-                let remainingAmount = totalAmountIn;
+                let remainingAmount = web3.utils.toBN(amountInWei);
                 let html = 'AVAILABLE ROUTES:<br>';
-                for (const { route, efficiency } of routeOutputs) {
-                    const share = efficiency.mul(web3.utils.toBN(10000)).div(totalOutput).toNumber() / 10000;
-                    const routeAmountIn = totalAmountIn.mul(web3.utils.toBN(Math.floor(share * 10000))).div(web3.utils.toBN(10000));
+
+                // Allocate amounts based on FEED reserve weights
+                for (const { route, weight } of routeWeights) {
+                    const share = weight.mul(web3.utils.toBN(10000)).div(totalWeight).toNumber() / 10000;
+                    const routeAmountIn = web3.utils.toBN(amountInWei).mul(web3.utils.toBN(Math.floor(share * 10000))).div(web3.utils.toBN(10000));
                     if (routeAmountIn.lte(web3.utils.toBN('0'))) continue;
                     if (routeAmountIn.gt(remainingAmount)) continue;
                     remainingAmount = remainingAmount.sub(routeAmountIn);
@@ -644,8 +739,10 @@
                         share: share * 100
                     });
                 }
+
+                // Allocate remaining amount to the route with the highest FEED reserve
                 if (remainingAmount.gt(web3.utils.toBN('0')) && swapRoutes.length > 0) {
-                    const bestRoute = routeOutputs.reduce((best, current) => current.efficiency.gt(best.efficiency) ? current : best);
+                    const bestRoute = routeWeights.reduce((best, current) => current.weight.gt(best.weight) ? current : best);
                     const output = await getOutputForRoute(bestRoute.route, remainingAmount);
                     const outputEther = parseFloat(web3.utils.fromWei(output, 'ether'));
                     totalOutputFloat += outputEther;
@@ -660,6 +757,7 @@
                         share
                     });
                 }
+
                 if (!swapRoutes.length) {
                     sellNote.innerHTML = 'No available routes found.';
                     approveButton.style.display = 'block';
@@ -667,10 +765,13 @@
                     approveButton.disabled = true;
                     return;
                 }
+
+                // Set minimum output amounts based on expected amounts
                 const expectedAmounts = await feedBuyAndSell.methods.getExpectedAmountsOut(swapRoutes).call();
                 for (let i = 0; i < swapRoutes.length; i++) {
                     swapRoutes[i].amountOutMin = expectedAmounts[i];
                 }
+
                 html += `TOTAL: ${totalOutputFloat.toFixed(2)} BONE`;
                 sellNote.innerHTML = html;
                 window.sellRoutes = swapRoutes;
@@ -687,6 +788,7 @@
             }
         }
 
+        // Approve FEED for selling
         async function approveFEED() {
             const approveButton = document.getElementById('approveButton');
             const sellButton = document.getElementById('sellButton');
@@ -711,6 +813,7 @@
             }
         }
 
+        // Execute sell transaction
         async function sellFEED() {
             const sellButton = document.getElementById('sellButton');
             const approveButton = document.getElementById('approveButton');
