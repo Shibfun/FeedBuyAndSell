@@ -406,28 +406,35 @@
         }
 
         async function calculateOptimalAmount(route, totalAmountIn, isBuy) {
-            let remainingAmount = web3.utils.toBN(totalAmountIn);
+            let initialAmountIn = web3.utils.toBN(totalAmountIn);
+            let currentAmount = initialAmountIn;
             let output = web3.utils.toBN('0');
             for (let i = 0; i < route.length; i++) {
                 const pairAddress = await factory.methods.getPair(route[i].from, route[i].to, false).call();
-                if (pairAddress === '0x0000000000000000000000000000000000000000') return { amountIn: web3.utils.toBN('0'), output: web3.utils.toBN('0') };
+                if (pairAddress === '0x0000000000000000000000000000000000000000') {
+                    return { amountIn: web3.utils.toBN('0'), output: web3.utils.toBN('0') };
+                }
                 const pairContract = new web3.eth.Contract(pairAbi, pairAddress);
                 const reserves = await pairContract.methods.getReserves().call();
                 const token0 = await pairContract.methods.token0().call();
                 const reserveIn = token0 === route[i].from ? reserves.reserve0 : reserves.reserve1;
                 const reserveOut = token0 === route[i].from ? reserves.reserve1 : reserves.reserve0;
-                if (remainingAmount.gt(web3.utils.toBN(reserveIn))) {
-                    remainingAmount = web3.utils.toBN(reserveIn);
+                if (i === 0) {
+                    if (currentAmount.gt(reserveIn)) {
+                        currentAmount = reserveIn;
+                    }
                 }
-                if (remainingAmount.eq(web3.utils.toBN('0'))) return { amountIn: web3.utils.toBN('0'), output: web3.utils.toBN('0') };
-                const amounts = await router.methods.getAmountsOut(remainingAmount, route.slice(0, i + 1)).call();
-                remainingAmount = web3.utils.toBN(amounts[amounts.length - 1]);
-                if (remainingAmount.gt(web3.utils.toBN(reserveOut))) {
-                    remainingAmount = web3.utils.toBN(reserveOut);
+                if (currentAmount.eq(web3.utils.toBN('0'))) {
+                    return { amountIn: web3.utils.toBN('0'), output: web3.utils.toBN('0') };
                 }
-                output = remainingAmount;
+                const amounts = await router.methods.getAmountsOut(currentAmount, route.slice(0, i + 1)).call();
+                currentAmount = web3.utils.toBN(amounts[amounts.length - 1]);
+                if (currentAmount.gt(reserveOut)) {
+                    currentAmount = reserveOut;
+                }
+                output = currentAmount;
             }
-            return { amountIn: remainingAmount, output };
+            return { amountIn: initialAmountIn.gt(currentAmount) ? currentAmount : initialAmountIn, output };
         }
 
         async function checkBuyRoutes() {
@@ -474,8 +481,12 @@
                 let remainingAmount = web3.utils.toBN(amountInWei);
                 let html = 'AVAILABLE ROUTES:<br>';
                 for (const route of possibleRoutes) {
+                    if (remainingAmount.lte(web3.utils.toBN('0'))) break;
                     const { amountIn, output } = await calculateOptimalAmount(route, remainingAmount, true);
                     if (amountIn.eq(web3.utils.toBN('0'))) continue;
+                    if (amountIn.gt(remainingAmount)) {
+                        continue;
+                    }
                     remainingAmount = remainingAmount.sub(amountIn);
                     const outputEther = parseFloat(web3.utils.fromWei(output, 'ether'));
                     totalOutput += outputEther;
@@ -579,8 +590,12 @@
                 let remainingAmount = web3.utils.toBN(amountInWei);
                 let html = 'AVAILABLE ROUTES:<br>';
                 for (const route of possibleRoutes) {
+                    if (remainingAmount.lte(web3.utils.toBN('0'))) break;
                     const { amountIn, output } = await calculateOptimalAmount(route, remainingAmount, false);
                     if (amountIn.eq(web3.utils.toBN('0'))) continue;
+                    if (amountIn.gt(remainingAmount)) {
+                        continue;
+                    }
                     remainingAmount = remainingAmount.sub(amountIn);
                     const outputEther = parseFloat(web3.utils.fromWei(output, 'ether'));
                     totalOutput += outputEther;
