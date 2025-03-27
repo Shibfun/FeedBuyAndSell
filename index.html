@@ -483,8 +483,9 @@
 
         // Optimize routes using aggregation trading
         async function optimizeRoutes(possibleRoutes, totalAmountInWei, outputToken) {
-            const STEP_AMOUNT = web3.utils.toWei('0.01', 'ether'); // Small step for allocation
-            let remainingAmount = web3.utils.toBN(totalAmountInWei);
+            const STEP_AMOUNT = web3.utils.toBN(web3.utils.toWei('0.01', 'ether')); // Small step for allocation
+            let remainingAmount = web3.utils.toBN(totalAmountInWei); // Ensure totalAmountInWei is a BigNumber
+            console.log(`Total Amount In (Wei): ${remainingAmount.toString()}`); // Debug log
             const routeAllocations = possibleRoutes.map(route => ({
                 route,
                 amountIn: web3.utils.toBN('0'),
@@ -516,6 +517,7 @@
                 routeAllocations[bestRouteIndex].amountIn = routeAllocations[bestRouteIndex].amountIn.add(stepAmount);
                 routeAllocations[bestRouteIndex].amountOut = routeAllocations[bestRouteIndex].amountOut.add(bestOutput);
                 remainingAmount = remainingAmount.sub(stepAmount);
+                console.log(`Allocated ${web3.utils.fromWei(stepAmount, 'ether')} to route ${bestRouteIndex}, remaining: ${web3.utils.fromWei(remainingAmount, 'ether')}`); // Debug log
             }
 
             // Convert to swap routes
@@ -548,13 +550,15 @@
             let amountInWei;
             try {
                 amountInWei = web3.utils.toWei(amountIn.toString(), 'ether');
+                amountInWei = web3.utils.toBN(amountInWei); // Convert to BigNumber
+                console.log(`Amount In (Wei): ${amountInWei.toString()}`); // Debug log
             } catch (error) {
                 buyNote.innerHTML = 'Invalid amount entered.';
                 buyButton.disabled = true;
                 approveBuyButton.style.display = 'none';
                 return;
             }
-            if (web3.utils.toBN(amountInWei).gt(web3.utils.toBN(payBalance))) {
+            if (amountInWei.gt(web3.utils.toBN(payBalance))) {
                 buyNote.innerHTML = 'Insufficient balance.';
                 buyButton.disabled = true;
                 approveBuyButton.style.display = 'none';
@@ -622,7 +626,7 @@
                 html += `TOTAL: ${totalOutputEther.toFixed(2)} FEED`;
                 buyNote.innerHTML = html;
                 window.buyRoutes = swapRoutes;
-                window.buyTotalAmount = amountInWei;
+                window.buyTotalAmount = amountInWei.toString();
                 window.buyPayToken = payTokenSymbol;
                 buyButton.disabled = false;
                 approveBuyButton.style.display = needsApproval ? 'block' : 'none';
@@ -712,6 +716,8 @@
             let amountInWei;
             try {
                 amountInWei = web3.utils.toWei(amountIn.toString(), 'ether');
+                amountInWei = web3.utils.toBN(amountInWei); // Convert to BigNumber
+                console.log(`Amount In (Wei): ${amountInWei.toString()}`); // Debug log
             } catch (error) {
                 sellNote.innerHTML = 'Invalid amount entered.';
                 approveButton.style.display = 'block';
@@ -719,7 +725,7 @@
                 approveButton.disabled = true;
                 return;
             }
-            if (web3.utils.toBN(amountInWei).gt(web3.utils.toBN(feedBalance))) {
+            if (amountInWei.gt(web3.utils.toBN(feedBalance))) {
                 sellNote.innerHTML = 'Insufficient balance.';
                 approveButton.style.display = 'block';
                 sellButton.style.display = 'none';
@@ -773,7 +779,7 @@
                 html += `TOTAL: ${totalOutputEther.toFixed(2)} BONE`;
                 sellNote.innerHTML = html;
                 window.sellRoutes = swapRoutes;
-                window.sellTotalAmount = amountInWei;
+                window.sellTotalAmount = amountInWei.toString();
                 approveButton.style.display = needsApproval ? 'block' : 'none';
                 sellButton.style.display = needsApproval ? 'none' : 'block';
                 approveButton.disabled = false;
@@ -797,7 +803,7 @@
             }
             try {
                 approveButton.disabled = true;
-                status.innerHTML = "Approving FEED... <span class='spinner'></span>";
+                status.innerHTML = "Approving FEED... <span class="spinner"></span>";
                 const feedContract = new web3.eth.Contract(erc20Abi, tokens.FEED.address);
                 await feedContract.methods.approve(feedBuyAndSellAddress, window.sellTotalAmount).send({ from: account });
                 status.innerText = "Approval successful!";
